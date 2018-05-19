@@ -9,22 +9,46 @@ import sys
 
 
 def main(argv):
-    """logmerge merges log files by timestamp to stdout
+    """logmerge merges log file entries by timestamp to stdout
 
 Example usage:
 
-  ./logmerge.py cbcollect-*
-  ./logmerge.py cbcollect-*/*.log
-  ./logmerge.py this.log that.log path/to/directoryOfLogFiles
+  ./logmerge.py this.log that.log
+  ./logmerge.py path/to/directory
+  ./logmerge.py path/to/directory/*.log
+  ./logmerge.py path/to/directoryA path/to/directoryB myLogFile.log
+
+The entries in each log file must already be sorted by timestamp, as
+logmerge operates by performing a heap merge.
 """
+    glob_suffix = "/*.log"
 
-    paths = expand_paths(argv[1:])
+    seeks = None
 
-    seek_default = 1 # Skip first line.
+    seek_default = 1 # Skip first entry.
 
-    heap_entries = prepare_heap_entries(paths, seek_default=seek_default)
+    max_entry_len = 100
 
-    print_heap_entries(heap_entries)
+    invert = False
+
+    # Find log files.
+
+    paths = expand_paths(argv[1:], glob_suffix=glob_suffix)
+
+    # Prepare heap entry for each log file.
+
+    heap_entries = prepare_heap_entries(paths,
+                                        seeks=seeks,
+                                        seek_default=seek_default,
+                                        max_entry_len=max_entry_len,
+                                        invert=invert)
+
+    # Consume heap, emitting each heap entry.
+
+    path_prefix = os.path.commonprefix(paths)
+
+    print_heap_entries(path_prefix, heap_entries,
+                       max_entry_len=max_entry_len, invert=invert)
 
 
 def expand_paths(paths, glob_suffix="/*.log"):
@@ -39,12 +63,16 @@ def expand_paths(paths, glob_suffix="/*.log"):
     return rv
 
 
-def prepare_heap_entries(paths, seeks=None, seek_default=0, max_entry_len=100):
+def prepare_heap_entries(paths,
+                         seeks=None,
+                         seek_default=0,
+                         max_entry_len=100,
+                         invert=False):
     heap_entries = []
 
     for path in paths:
         f = open(path, 'r')
-        r = EntryReader(f, path)
+        r = EntryReader(f, path, max_entry_len)
 
         seek_to = seek_default
         if seeks:
@@ -55,7 +83,7 @@ def prepare_heap_entries(paths, seeks=None, seek_default=0, max_entry_len=100):
             r.read() # Discard as it's in the middle of a entry.
 
         entry = r.read()
-        if entry and len(entry) >= 1 and len(entry) < max_entry_len:
+        if entry_ok(entry, max_entry_len, invert):
             heap_entries.append((parse_first_timestamp(entry[0]), entry, r))
 
     heapq.heapify(heap_entries)
@@ -63,23 +91,32 @@ def prepare_heap_entries(paths, seeks=None, seek_default=0, max_entry_len=100):
     return heap_entries
 
 
-def print_heap_entries(heap_entries, max_entry_len=100):
+def entry_ok(entry, max_entry_len, invert):
+   if entry and len(entry) >= 1:
+      if len(entry) <= max_entry_len:
+         return not invert
+      else:
+         return invert
+
+
+def print_heap_entries(path_prefix, heap_entries, max_entry_len=100, invert=False):
     while heap_entries:
         timestamp, entry, r = heapq.heappop(heap_entries)
 
         print "".join(entry)
 
         entry = r.read()
-        if entry and len(entry) >= 1 and len(entry) < max_entry_len:
+        if entry_ok(entry, max_entry_len, invert):
             heapq.heappush(heap_entries,
                            (parse_first_timestamp(entry[0]), entry, r))
 
 
 class EntryReader(object):
-    def __init__(self, f, path):
+    def __init__(self, f, path, max_entry_len):
         self.f = f
         self.path = path
         self.last_line = None
+        self.max_entry_len = max_entry_len
 
     def read(self):
         entry = []
@@ -103,7 +140,7 @@ class EntryReader(object):
 re_first_timestamp = re.compile(r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
 
 def parse_first_timestamp(line):
-    """Returns the first timestamp of a log entry"""
+    """Returns the first timestamp found in a log entry"""
     m = re_first_timestamp.match(line)
     if m:
         return m.group(1)
