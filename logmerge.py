@@ -84,7 +84,7 @@ def prepare_heap_entries(paths,
 
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
-            heap_entries.append((parse_first_timestamp(entry[0]), entry, r))
+            heap_entries.append((parse_entry_timestamp(entry[0]), entry, r))
 
     heapq.heapify(heap_entries)
 
@@ -108,7 +108,7 @@ def print_heap_entries(path_prefix, heap_entries, max_entry_len=100, invert=Fals
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
             heapq.heappush(heap_entries,
-                           (parse_first_timestamp(entry[0]), entry, r))
+                           (parse_entry_timestamp(entry[0]), entry, r))
 
 
 class EntryReader(object):
@@ -130,18 +130,18 @@ class EntryReader(object):
                 self.f = None
                 return entry
 
-            if parse_first_timestamp(self.last_line):
+            if parse_entry_timestamp(self.last_line):
                 return entry
 
             entry.append(self.last_line)
 
 
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
-re_first_timestamp = re.compile(r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+re_entry_timestamp = re.compile(r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
 
-def parse_first_timestamp(line):
-    """Returns the first timestamp found in a log entry"""
-    m = re_first_timestamp.match(line)
+def parse_entry_timestamp(line):
+    """Returns the timestamp found in an entry's first line"""
+    m = re_entry_timestamp.match(line)
     if m:
         return m.group(1)
 
