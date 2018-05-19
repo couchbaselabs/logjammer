@@ -13,10 +13,8 @@ def main(argv):
 
 Example usage:
 
-  ./logmerge.py this.log that.log
-  ./logmerge.py path/to/directory
-  ./logmerge.py path/to/directory/*.log
-  ./logmerge.py path/to/directoryA path/to/directoryB myLogFile.log
+  ./logmerge.py this.log that.log other.log
+  ./logmerge.py path/dirA path/dirB one.log two.log
 
 The entries in each log file must already be sorted by timestamp, as
 logmerge operates by performing a heap merge.
@@ -25,7 +23,7 @@ logmerge operates by performing a heap merge.
 
     seeks = None
 
-    seek_default = 1  # Skip first entry.
+    seek_default = 0
 
     max_entry_len = 100
 
