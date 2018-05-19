@@ -19,15 +19,13 @@ Example usage:
 The entries in each log file must already be sorted by timestamp, as
 logmerge operates by performing a heap merge.
 """
+    # When expanding a directory, log files have this suffix.
     glob_suffix = "/*.log"
 
-    seeks = None
-
-    seek_default = 0
-
-    max_entry_len = 100
-
-    invert = False
+    seeks = None         # Optional dict of path => seek() positions.
+    seek_default = 0     # Optional default seek() position.
+    max_entry_len = 100  # Entries that are too long aren't entries.
+    invert = False       # Emit non-entries instead of entries.
 
     # Find log files.
 
