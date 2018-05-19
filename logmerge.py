@@ -25,7 +25,7 @@ logmerge operates by performing a heap merge.
 
     seeks = None
 
-    seek_default = 1 # Skip first entry.
+    seek_default = 1  # Skip first entry.
 
     max_entry_len = 100
 
@@ -80,7 +80,7 @@ def prepare_heap_entries(paths,
 
         if seek_to:
             f.seek(seek_to)
-            r.read() # Discard as it's in the middle of a entry.
+            r.read()  # Discard as it's in the middle of a entry.
 
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
@@ -92,14 +92,15 @@ def prepare_heap_entries(paths,
 
 
 def entry_ok(entry, max_entry_len, invert):
-   if entry and len(entry) >= 1:
-      if len(entry) <= max_entry_len:
-         return not invert
-      else:
-         return invert
+    if entry and len(entry) >= 1:
+        if len(entry) <= max_entry_len:
+            return not invert
+        else:
+            return invert
 
 
-def print_heap_entries(path_prefix, heap_entries, max_entry_len=100, invert=False):
+def print_heap_entries(path_prefix, heap_entries,
+                       max_entry_len=100, invert=False):
     while heap_entries:
         timestamp, entry, r = heapq.heappop(heap_entries)
 
@@ -137,10 +138,13 @@ class EntryReader(object):
 
 
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
-re_entry_timestamp = re.compile(r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+re_entry_timestamp = re.compile(
+   r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+
 
 def parse_entry_timestamp(line):
     """Returns the timestamp found in an entry's first line"""
+
     m = re_entry_timestamp.match(line)
     if m:
         return m.group(1)
