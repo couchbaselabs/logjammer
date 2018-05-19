@@ -23,7 +23,6 @@ logmerge operates by performing a heap merge.
     glob_suffix = "/*.log"
 
     seeks = None         # Optional dict of path => seek() positions.
-    seek_default = 0     # Optional default seek() position.
     max_entry_len = 100  # Entries that are too long aren't entries.
     invert = False       # Emit non-entries instead of entries.
 
@@ -35,7 +34,6 @@ logmerge operates by performing a heap merge.
 
     heap_entries = prepare_heap_entries(paths,
                                         seeks=seeks,
-                                        seek_default=seek_default,
                                         max_entry_len=max_entry_len,
                                         invert=invert)
 
@@ -61,7 +59,6 @@ def expand_paths(paths, glob_suffix="/*.log"):
 
 def prepare_heap_entries(paths,
                          seeks=None,
-                         seek_default=0,
                          max_entry_len=100,
                          invert=False):
     heap_entries = []
@@ -70,13 +67,11 @@ def prepare_heap_entries(paths,
         f = open(path, 'r')
         r = EntryReader(f, path, max_entry_len)
 
-        seek_to = seek_default
         if seeks:
             seek_to = seeks.get(path)
-
-        if seek_to:
-            f.seek(seek_to)
-            r.read()  # Discard as it's in the middle of a entry.
+            if seek_to:
+               f.seek(seek_to)
+               r.read()  # Discard as it's in the middle of a entry.
 
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
