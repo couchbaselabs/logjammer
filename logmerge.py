@@ -103,7 +103,7 @@ def print_heap_entries(path_prefix, heap_entries, max_entry_len=100, invert=Fals
     while heap_entries:
         timestamp, entry, r = heapq.heappop(heap_entries)
 
-        print "".join(entry)
+        print r.path[len(path_prefix):], "".join(entry)
 
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
