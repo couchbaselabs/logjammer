@@ -24,6 +24,8 @@ operates by performing a heap merge.""")
                     find log files that have this glob suffix""")
     ap.add_argument('--max_lines_per_entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping""")
+    ap.add_argument('--out', type=str, default="--",
+                    help="""write to file instead of to stdout""")
     ap.add_argument('path', nargs='*',
                     help="""log file or directory of log files""")
 
@@ -31,22 +33,31 @@ operates by performing a heap merge.""")
 
     process(args.path,
             glob_suffix="/*" + args.suffix,
-            max_lines_per_entry=args.max_lines_per_entry)
+            max_lines_per_entry=args.max_lines_per_entry,
+            out=args.out)
 
 
 def process(paths,
             glob_suffix="/*.log",
             max_lines_per_entry=100,  # Entries that are too long are clipped.
-            seeks=None):              # dict[path] => seek() positions.
+            seeks=None,
+            out='--'):                # dict[path] => initial seek() positions.
     # Find log files.
     paths = expand_paths(paths, glob_suffix)
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(
-       paths, max_lines_per_entry, seeks=seeks)
+        paths, max_lines_per_entry, seeks=seeks)
 
     # Print heap entries until all entries are consumed.
-    print_heap_entries(os.path.commonprefix(paths), heap_entries)
+    w = sys.stdout
+    if out and out != '--':
+        w = open(out, 'w')
+
+    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries)
+
+    if w != sys.stdout:
+        w.close()
 
 
 def expand_paths(paths, glob_suffix):
@@ -83,11 +94,13 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
     return heap_entries
 
 
-def print_heap_entries(path_prefix, heap_entries):
+def emit_heap_entries(w, path_prefix, heap_entries):
     while heap_entries:
         timestamp, entry, r = heapq.heappop(heap_entries)
 
-        print r.path[len(path_prefix):], "".join(entry)
+        w.write(r.path[len(path_prefix):])
+        w.write(' ')
+        w.write("".join(entry))
 
         entry = r.read()
         if entry:
