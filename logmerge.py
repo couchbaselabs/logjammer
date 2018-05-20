@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # -*- mode: Python;-*-
 
 from dateutil import parser
@@ -25,7 +25,8 @@ operates by performing a heap merge.""")
     ap.add_argument('--max_lines_per_entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping""")
     ap.add_argument('--out', type=str, default="--",
-                    help="""write to file instead of to stdout""")
+                    help="""write to file instead of to stdout,
+                    showing a progress bar on stdout""")
     ap.add_argument('path', nargs='*',
                     help="""log file or directory of log files""")
 
@@ -49,12 +50,25 @@ def process(paths,
     heap_entries = prepare_heap_entries(
         paths, max_lines_per_entry, seeks=seeks)
 
-    # Print heap entries until all entries are consumed.
+    # By default, emit to stdout with no progressbar.
     w = sys.stdout
+    b = None
+
+    # Otherwise, when emitting to a file, display progress on stdout.
     if out and out != '--':
         w = open(out, 'w')
 
-    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries)
+        total_size = 0
+        for path in paths:
+            total_size += os.path.getsize(path)
+
+        # See progressbar2 from https://github.com/WoLpH/python-progressbar
+        import progressbar
+
+        b = progressbar.ProgressBar().start(max_value=total_size)
+
+    # Print heap entries until all entries are consumed.
+    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries, bar=b)
 
     if w != sys.stdout:
         w.close()
@@ -94,7 +108,10 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
     return heap_entries
 
 
-def emit_heap_entries(w, path_prefix, heap_entries):
+def emit_heap_entries(w, path_prefix, heap_entries, bar=None):
+    i = 0  # Total entries seen so far.
+    n = 0  # Total bytes of lines seen so far.
+
     while heap_entries:
         timestamp, entry, r = heapq.heappop(heap_entries)
 
@@ -106,6 +123,13 @@ def emit_heap_entries(w, path_prefix, heap_entries):
         if entry:
             heapq.heappush(heap_entries,
                            (parse_entry_timestamp(entry[0]), entry, r))
+
+            if bar:
+                for line in entry:
+                    n += len(line)
+                if i % 5000 == 0:
+                    bar.update(n)
+                i += 1
 
 
 class EntryReader(object):
