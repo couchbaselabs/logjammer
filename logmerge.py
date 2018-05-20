@@ -1,6 +1,8 @@
 #!/usr/bin/env python2.7
 # -*- mode: Python;-*-
 
+from dateutil import parser
+
 import glob
 import heapq
 import os
@@ -70,8 +72,8 @@ def prepare_heap_entries(paths,
         if seeks:
             seek_to = seeks.get(path)
             if seek_to:
-               f.seek(seek_to)
-               r.read()  # Discard as it's in the middle of a entry.
+                f.seek(seek_to)
+                r.read()  # Discard as it's in the middle of a entry.
 
         entry = r.read()
         if entry_ok(entry, max_entry_len, invert):
@@ -130,7 +132,12 @@ class EntryReader(object):
 
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
 re_entry_timestamp = re.compile(
-   r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+    r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+
+# Example...
+# 172.23.211.28 - Admin [07/May/2018:16:45:33
+re_http_timestamp = re.compile(
+    r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
 
 
 def parse_entry_timestamp(line):
@@ -139,6 +146,11 @@ def parse_entry_timestamp(line):
     m = re_entry_timestamp.match(line)
     if m:
         return m.group(1)
+
+    m = re_http_timestamp.match(line)
+    if m:
+        d = parser.parse(m.group(1), fuzzy=True)
+        return d.strftime("%Y-%m-%dT%H%M%S")
 
 
 if __name__ == '__main__':
