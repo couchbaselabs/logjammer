@@ -43,11 +43,9 @@ def process(paths,
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(
-       paths,
-       max_lines_per_entry=max_lines_per_entry,
-       seeks=seeks)
+       paths, max_lines_per_entry, seeks=seeks)
 
-    # Consume heap, emitting each heap entry.
+    # Print heap entries until all entries are consumed.
     print_heap_entries(os.path.commonprefix(paths), heap_entries)
 
 
@@ -63,9 +61,7 @@ def expand_paths(paths, glob_suffix):
     return rv
 
 
-def prepare_heap_entries(paths,
-                         max_lines_per_entry=100,
-                         seeks=None):
+def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
     heap_entries = []
 
     for path in paths:
@@ -107,6 +103,8 @@ class EntryReader(object):
         self.max_lines_per_entry = max_lines_per_entry
 
     def read(self):
+        """Read lines from the file until we see the next entry"""
+
         entry = []
         if self.last_line:
             entry.append(self.last_line)
@@ -129,7 +127,7 @@ class EntryReader(object):
 re_entry_timestamp = re.compile(
     r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
 
-# Example...
+# For parsing http log timestamps, example...
 # 172.23.211.28 - Admin [07/May/2018:16:45:33
 re_http_timestamp = re.compile(
     r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
