@@ -13,22 +13,27 @@ import sys
 
 def main(argv):
     ap = argparse.ArgumentParser(
-       description='merges entries from log files by timestamp to stdout',
-       epilog="""An entry in a log file may take more than one line,
-where entries are determined via heuristic timestamp parsing.  The log
-file entries in each log file must be sorted by timestamp, as logmerge
-operates by performing a heap merge.""")
+       description='%(prog)s merges entries from log files by timestamp',
+       epilog="""An entry in a log file may span more than one line,
+
+where the start of the next entry is determined via heuristics
+(mainly, looking for timestamps).  The log file entries in each log
+file are expected to be sorted by timestamp, as %(prog)s operates by
+performing a heap merge.""")
 
     ap.add_argument('--suffix', type=str, default=".log",
                     help="""when expanding directory paths,
-                    find log files that have this glob suffix""")
+                    find log files that have this glob suffix
+                    (default: %(default)s)""")
     ap.add_argument('--max_lines_per_entry', type=int, default=100,
-                    help="""max number of lines in an entry before clipping""")
+                    help="""max number of lines in an entry before clipping
+                    (default: %(default)s)""")
     ap.add_argument('--out', type=str, default="--",
-                    help="""write to file instead of to stdout,
-                    showing a progress bar on stdout""")
+                    help="""write to an OUT file instead
+                    of by default to stdout, showing a progress bar
+                    instead on stdout""")
     ap.add_argument('path', nargs='*',
-                    help="""log file or directory of log files""")
+                    help="""a log file or directory of log files""")
 
     args = ap.parse_args(argv[1:])
 
