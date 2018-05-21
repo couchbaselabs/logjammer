@@ -58,7 +58,7 @@ def process(paths,
     heap_entries = prepare_heap_entries(
         paths, max_lines_per_entry, seeks=seeks)
 
-    # By default, emit to stdout with no progressbar.
+    # By default, emit to stdout with no progress display.
     w = sys.stdout
     b = None
 
@@ -107,9 +107,10 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
                 f.seek(seek_to)
                 r.read()  # Discard as it's in the middle of a entry.
 
-        entry = r.read()
+        entry, entry_size = r.read()
         if entry:
-            heap_entries.append((parse_entry_timestamp(entry[0]), entry, r))
+            heap_entries.append(
+               (parse_entry_timestamp(entry[0]), entry, entry_size, r))
 
     heapq.heapify(heap_entries)
 
@@ -121,23 +122,23 @@ def emit_heap_entries(w, path_prefix, heap_entries, bar=None):
     n = 0  # Total bytes of lines seen so far.
 
     while heap_entries:
-        timestamp, entry, r = heapq.heappop(heap_entries)
+        timestamp, entry, entry_size, r = heapq.heappop(heap_entries)
+
+        if bar:
+           n += entry_size
+           if i % 2000 == 0:
+              bar.update(n)
+           i += 1
 
         w.write(r.path[len(path_prefix):])
         w.write(' ')
         w.write("".join(entry))
 
-        entry = r.read()
+        entry, entry_size = r.read()
         if entry:
-            heapq.heappush(heap_entries,
-                           (parse_entry_timestamp(entry[0]), entry, r))
-
-            if bar:
-                for line in entry:
-                    n += len(line)
-                if i % 5000 == 0:
-                    bar.update(n)
-                i += 1
+            heapq.heappush(
+               heap_entries,
+               (parse_entry_timestamp(entry[0]), entry, entry_size, r))
 
 
 class EntryReader(object):
@@ -151,22 +152,28 @@ class EntryReader(object):
         """Read lines from the file until we see the next entry"""
 
         entry = []
+        entry_size = 0
+
         if self.last_line:
             entry.append(self.last_line)
+            entry_size += len(self.last_line)
 
         while self.f:
             self.last_line = self.f.readline()
             if self.last_line == "":
                 self.f.close()
                 self.f = None
-                return entry
+                return entry, entry_size
 
             if parse_entry_timestamp(self.last_line):
-                return entry
+                return entry, entry_size
 
             if len(entry) < self.max_lines_per_entry:
                 entry.append(self.last_line)
 
+            entry_size += len(self.last_line)
+
+        return None, 0
 
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
 re_entry_timestamp = re.compile(
