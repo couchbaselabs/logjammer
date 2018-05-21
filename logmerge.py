@@ -170,6 +170,8 @@ class EntryReader(object):
 
             if len(entry) < self.max_lines_per_entry:
                 entry.append(self.last_line)
+            elif len(entry) == self.max_lines_per_entry:
+                entry.append("...CLIPPED...\n")
 
             entry_size += len(self.last_line)
 
