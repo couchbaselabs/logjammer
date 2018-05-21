@@ -105,7 +105,7 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
         f = open(path, 'r')
         r = EntryReader(f, path, max_lines_per_entry)
 
-        if seeks: # Optional initial seek() positions.
+        if seeks:  # Optional initial seek() positions.
             seek_to = seeks.get(path)
             if seek_to:
                 f.seek(seek_to)
@@ -141,7 +141,7 @@ def emit_heap_entries(w, path_prefix, heap_entries,
 
         for line in entry:
             if single_line:
-                w.write(line[:-1]) # Clip trailing newline.
+                w.write(line[:-1])  # Clip trailing newline.
             else:
                 w.write(line)
 
