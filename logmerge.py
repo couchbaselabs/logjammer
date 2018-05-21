@@ -4,11 +4,26 @@
 from dateutil import parser
 
 import argparse
+import datetime
 import glob
 import heapq
 import os
 import re
 import sys
+
+
+# Standard timestamp format used for comparing log entries.
+timestamp_format = "%Y-%m-%dT%H:%M:%S"
+
+
+# Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
+re_entry_timestamp = re.compile(
+    r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
+
+# For parsing http log timestamps, example...
+# 172.23.211.28 - Admin [07/May/2018:16:45:33
+re_http_timestamp = re.compile(
+    r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
 
 
 def main(argv):
@@ -36,21 +51,45 @@ performing a heap merge.""")
                     (default: %(default)s)""")
     ap.add_argument('--start', type=str,
                     help="""emit only entries that come at or after this
-                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh-mm-ss""")
+                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
     ap.add_argument('--end', type=str,
                     help="""emit only entries that come at or before this
-                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh-mm-ss""")
+                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
+    ap.add_argument('--near', type=str,
+                    help="""emit log entries that are near the given
+                    timestamp, by providing defaults to the start/end params,
+                    like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
+                    where the optional MINUTES defaults to 1 minute""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
     args = ap.parse_args(argv[1:])
 
+    start = args.start
+    end = args.end
+
+    # Optional near param might look like "2018-12-25T03:00:00+/-5",
+    # and works by providing defaults for the start/end params.
+    if args.near:
+        near = args.near.split("+/-")
+        base = parser.parse(near[0])
+
+        minutes = datetime.timedelta(minutes=1)
+        if len(near) == 2:
+            minutes = datetime.timedelta(minutes=int(near[1]))
+
+        if not start:
+            start = (base - minutes).strftime(timestamp_format)
+
+        if not end:
+            end = (base + minutes).strftime(timestamp_format)
+
     process(args.path,
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
-            start=args.start,
-            end=args.end,
+            start=start,
+            end=end,
             suffix=args.suffix)
 
 
@@ -226,16 +265,6 @@ class EntryReader(object):
         return None, 0
 
 
-# Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
-re_entry_timestamp = re.compile(
-    r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
-
-# For parsing http log timestamps, example...
-# 172.23.211.28 - Admin [07/May/2018:16:45:33
-re_http_timestamp = re.compile(
-    r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
-
-
 def parse_entry_timestamp(line):
     """Returns the timestamp found in an entry's first line"""
 
@@ -246,7 +275,7 @@ def parse_entry_timestamp(line):
     m = re_http_timestamp.match(line)
     if m:
         d = parser.parse(m.group(1), fuzzy=True)
-        return d.strftime("%Y-%m-%dT%H:%M:%S")
+        return d.strftime(timestamp_format)
 
 
 if __name__ == '__main__':
