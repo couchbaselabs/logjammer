@@ -15,10 +15,9 @@ def main(argv):
     ap = argparse.ArgumentParser(
        description='%(prog)s merges entries from log files by timestamp',
        epilog="""An entry in a log file may span more than one line,
-
 where the start of the next entry is determined via heuristics
 (mainly, looking for timestamps).  The log file entries in each log
-file are expected to be sorted by timestamp, as %(prog)s operates by
+file are expected to be ordered by timestamp, as %(prog)s operates by
 performing a heap merge.""")
 
     ap.add_argument('--suffix', type=str, default=".log",
@@ -51,6 +50,10 @@ def process(paths,
     # Find log files.
     paths = expand_paths(paths, glob_suffix)
 
+    total_size = 0
+    for path in paths:
+        total_size += os.path.getsize(path)
+
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(
         paths, max_lines_per_entry, seeks=seeks)
@@ -63,10 +66,6 @@ def process(paths,
     if out and out != '--':
         w = open(out, 'w')
 
-        total_size = 0
-        for path in paths:
-            total_size += os.path.getsize(path)
-
         # See progressbar2 from https://github.com/WoLpH/python-progressbar
         import progressbar
 
@@ -77,6 +76,10 @@ def process(paths,
 
     if w != sys.stdout:
         w.close()
+
+    if b:
+        b.update(total_size)
+        print >>sys.stderr, "\ndone"
 
 
 def expand_paths(paths, glob_suffix):
