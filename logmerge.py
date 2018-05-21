@@ -21,8 +21,8 @@ file are expected to be ordered by timestamp, as %(prog)s operates by
 performing a heap merge.""")
 
     ap.add_argument('--max-lines-per-entry', type=int, default=100,
-                    help="""max number of lines in an entry before clipping
-                    (default: %(default)s)""")
+                    help="""max number of lines in an entry before clipping,
+                    where 0 means no limit (default: %(default)s)""")
     ap.add_argument('--out', type=str, default="--",
                     help="""write to an OUT file instead
                     of by default to stdout, showing a progress bar
@@ -40,19 +40,19 @@ performing a heap merge.""")
     args = ap.parse_args(argv[1:])
 
     process(args.path,
-            glob_suffix="/*" + args.suffix,
             max_lines_per_entry=args.max_lines_per_entry,
+            out=args.out,
             single_line=args.single_line,
-            out=args.out)
+            suffix=args.suffix)
 
 
 def process(paths,
-            glob_suffix="/*.log",
             max_lines_per_entry=100,  # Entries that are too long are clipped.
-            single_line=False,
-            out='--'):                # dict[path] => initial seek() positions.
+            out='--',                 # Output file path, or '--' for stdout.
+            single_line=False,        # dict[path] => initial seek() positions.
+            suffix=".log"):           # Suffix used with directory glob'ing.
     # Find log files.
-    paths = expand_paths(paths, glob_suffix)
+    paths = expand_paths(paths, "/*" + suffix)
 
     total_size = 0
     for path in paths:
@@ -182,7 +182,9 @@ class EntryReader(object):
             if parse_entry_timestamp(self.last_line):
                 return entry, entry_size
 
-            if len(entry) < self.max_lines_per_entry:
+            if not self.max_lines_per_entry:
+                entry.append(self.last_line)
+            elif len(entry) < self.max_lines_per_entry:
                 entry.append(self.last_line)
             elif len(entry) == self.max_lines_per_entry:
                 entry.append(" ...CLIPPED...\n")
