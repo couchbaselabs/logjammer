@@ -20,17 +20,20 @@ where the start of the next entry is determined via heuristics
 file are expected to be ordered by timestamp, as %(prog)s operates by
 performing a heap merge.""")
 
-    ap.add_argument('--suffix', type=str, default=".log",
-                    help="""when expanding directory paths,
-                    find log files that have this glob suffix
-                    (default: %(default)s)""")
-    ap.add_argument('--max_lines_per_entry', type=int, default=100,
+    ap.add_argument('--max-lines-per-entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping
                     (default: %(default)s)""")
     ap.add_argument('--out', type=str, default="--",
                     help="""write to an OUT file instead
                     of by default to stdout, showing a progress bar
                     instead on stdout""")
+    ap.add_argument('--single-line', type=bool, default=False,
+                    help="""emit multi-line entries as a single line
+                    (default: %(default)s)""")
+    ap.add_argument('--suffix', type=str, default=".log",
+                    help="""when expanding directory paths,
+                    find log files that have this glob suffix
+                    (default: %(default)s)""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
@@ -39,13 +42,14 @@ performing a heap merge.""")
     process(args.path,
             glob_suffix="/*" + args.suffix,
             max_lines_per_entry=args.max_lines_per_entry,
+            single_line=args.single_line,
             out=args.out)
 
 
 def process(paths,
             glob_suffix="/*.log",
             max_lines_per_entry=100,  # Entries that are too long are clipped.
-            seeks=None,
+            single_line=False,
             out='--'):                # dict[path] => initial seek() positions.
     # Find log files.
     paths = expand_paths(paths, glob_suffix)
@@ -55,8 +59,7 @@ def process(paths,
         total_size += os.path.getsize(path)
 
     # Prepare heap entry for each log file.
-    heap_entries = prepare_heap_entries(
-        paths, max_lines_per_entry, seeks=seeks)
+    heap_entries = prepare_heap_entries(paths, max_lines_per_entry)
 
     # By default, emit to stdout with no progress display.
     w = sys.stdout
@@ -72,7 +75,8 @@ def process(paths,
         b = progressbar.ProgressBar().start(max_value=total_size)
 
     # Print heap entries until all entries are consumed.
-    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries, bar=b)
+    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
+                      single_line=single_line, bar=b)
 
     if w != sys.stdout:
         w.close()
@@ -101,7 +105,7 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
         f = open(path, 'r')
         r = EntryReader(f, path, max_lines_per_entry)
 
-        if seeks:
+        if seeks: # Optional initial seek() positions.
             seek_to = seeks.get(path)
             if seek_to:
                 f.seek(seek_to)
@@ -117,7 +121,9 @@ def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
     return heap_entries
 
 
-def emit_heap_entries(w, path_prefix, heap_entries, bar=None):
+def emit_heap_entries(w, path_prefix, heap_entries,
+                      single_line=False,
+                      bar=None):
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
 
@@ -132,7 +138,15 @@ def emit_heap_entries(w, path_prefix, heap_entries, bar=None):
 
         w.write(r.path[len(path_prefix):])
         w.write(' ')
-        w.write("".join(entry))
+
+        for line in entry:
+            if single_line:
+                w.write(line[:-1]) # Clip trailing newline.
+            else:
+                w.write(line)
+
+        if single_line:
+            w.write("\n")
 
         entry, entry_size = r.read()
         if entry:
@@ -145,8 +159,8 @@ class EntryReader(object):
     def __init__(self, f, path, max_lines_per_entry):
         self.f = f
         self.path = path
-        self.last_line = None
         self.max_lines_per_entry = max_lines_per_entry
+        self.last_line = None
 
     def read(self):
         """Read lines from the file until we see the next entry"""
@@ -171,7 +185,7 @@ class EntryReader(object):
             if len(entry) < self.max_lines_per_entry:
                 entry.append(self.last_line)
             elif len(entry) == self.max_lines_per_entry:
-                entry.append("...CLIPPED...\n")
+                entry.append(" ...CLIPPED...\n")
 
             entry_size += len(self.last_line)
 
