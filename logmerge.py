@@ -125,10 +125,10 @@ def emit_heap_entries(w, path_prefix, heap_entries, bar=None):
         timestamp, entry, entry_size, r = heapq.heappop(heap_entries)
 
         if bar:
-           n += entry_size
-           if i % 2000 == 0:
-              bar.update(n)
-           i += 1
+            n += entry_size
+            if i % 2000 == 0:
+                bar.update(n)
+            i += 1
 
         w.write(r.path[len(path_prefix):])
         w.write(' ')
@@ -176,6 +176,7 @@ class EntryReader(object):
             entry_size += len(self.last_line)
 
         return None, 0
+
 
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
 re_entry_timestamp = re.compile(
