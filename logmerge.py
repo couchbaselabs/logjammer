@@ -37,6 +37,9 @@ performing a heap merge.""")
     ap.add_argument('--start', type=str,
                     help="""emit only entries that come at or after this
                     timestamp, like YYYY-MM-DD or YYYY-MM-DDThh-mm-ss""")
+    ap.add_argument('--end', type=str,
+                    help="""emit only entries that come at or before this
+                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh-mm-ss""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
@@ -47,6 +50,7 @@ performing a heap merge.""")
             out=args.out,
             single_line=args.single_line,
             start=args.start,
+            end=args.end,
             suffix=args.suffix)
 
 
@@ -55,6 +59,7 @@ def process(paths,
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
             start=None,               # Start timestamp for binary search.
+            end=None,                 # End timestamp for filtering.
             suffix=".log"):           # Suffix used with directory glob'ing.
     # Find log files.
     paths = expand_paths(paths, "/*" + suffix)
@@ -64,7 +69,7 @@ def process(paths,
         total_size += os.path.getsize(path)
 
     # Prepare heap entry for each log file.
-    heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start)
+    heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start, end)
 
     # By default, emit to stdout with no progress display.
     w = sys.stdout
@@ -81,7 +86,7 @@ def process(paths,
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
-                      single_line=single_line, bar=b)
+                      end=end, single_line=single_line, bar=b)
 
     if w != sys.stdout:
         w.close()
@@ -103,7 +108,7 @@ def expand_paths(paths, glob_suffix):
     return rv
 
 
-def prepare_heap_entries(paths, max_lines_per_entry, start):
+def prepare_heap_entries(paths, max_lines_per_entry, start, end):
     heap_entries = []
 
     for path in paths:
@@ -138,8 +143,9 @@ def prepare_heap_entries(paths, max_lines_per_entry, start):
 
         entry, entry_size = r.read()
         if entry:
-            heap_entries.append(
-                (parse_entry_timestamp(entry[0]), entry, entry_size, r))
+            timestamp = parse_entry_timestamp(entry[0])
+            if (not end) or timestamp <= end:
+                heap_entries.append((timestamp, entry, entry_size, r))
 
     heapq.heapify(heap_entries)
 
@@ -147,8 +153,7 @@ def prepare_heap_entries(paths, max_lines_per_entry, start):
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
-                      single_line=False,
-                      bar=None):
+                      end=None, single_line=False, bar=None):
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
 
@@ -175,9 +180,9 @@ def emit_heap_entries(w, path_prefix, heap_entries,
 
         entry, entry_size = r.read()
         if entry:
-            heapq.heappush(
-               heap_entries,
-               (parse_entry_timestamp(entry[0]), entry, entry_size, r))
+            timestamp = parse_entry_timestamp(entry[0])
+            if (not end) or timestamp <= end:
+                heapq.heappush(heap_entries, (timestamp, entry, entry_size, r))
 
 
 class EntryReader(object):
