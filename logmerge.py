@@ -28,12 +28,15 @@ performing a heap merge.""")
                     of by default to stdout, showing a progress bar
                     instead on stdout""")
     ap.add_argument('--single-line', type=bool, default=False,
-                    help="""emit multi-line entries as a single line
+                    help="""collapse multi-line entries into a single line
                     (default: %(default)s)""")
     ap.add_argument('--suffix', type=str, default=".log",
                     help="""when expanding directory paths,
-                    find log files that have this glob suffix
+                    find log files that match this glob suffix
                     (default: %(default)s)""")
+    ap.add_argument('--start', type=str,
+                    help="""emit only entries that come at or after this
+                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh-mm-ss""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
@@ -43,6 +46,7 @@ performing a heap merge.""")
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
+            start=args.start,
             suffix=args.suffix)
 
 
@@ -50,6 +54,7 @@ def process(paths,
             max_lines_per_entry=100,  # Entries that are too long are clipped.
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
+            start=None,               # Start timestamp for binary search.
             suffix=".log"):           # Suffix used with directory glob'ing.
     # Find log files.
     paths = expand_paths(paths, "/*" + suffix)
@@ -59,7 +64,7 @@ def process(paths,
         total_size += os.path.getsize(path)
 
     # Prepare heap entry for each log file.
-    heap_entries = prepare_heap_entries(paths, max_lines_per_entry)
+    heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start)
 
     # By default, emit to stdout with no progress display.
     w = sys.stdout
@@ -98,23 +103,43 @@ def expand_paths(paths, glob_suffix):
     return rv
 
 
-def prepare_heap_entries(paths, max_lines_per_entry, seeks=None):
+def prepare_heap_entries(paths, max_lines_per_entry, start):
     heap_entries = []
 
     for path in paths:
         f = open(path, 'r')
         r = EntryReader(f, path, max_lines_per_entry)
 
-        if seeks:  # Optional initial seek() positions.
-            seek_to = seeks.get(path)
-            if seek_to:
-                f.seek(seek_to)
-                r.read()  # Discard as it's in the middle of a entry.
+        if start:  # Optional start timestamp to find with binary search.
+            i = 0
+            j = os.path.getsize(path)
+
+            while i < j:
+                mid = int((i + j) / 2)
+
+                f.seek(mid)
+
+                r2 = EntryReader(f, path, 1, close_when_done=False)
+                r2.read()  # Discard this read as it's likely mid-entry.
+
+                entry, entry_size = r2.read()
+                if entry:
+                    if start > parse_entry_timestamp(entry[0]):
+                        i = mid + 1
+                    else:
+                        j = mid
+                else:
+                    i = j
+
+            f.seek(i)
+
+            r = EntryReader(f, path, max_lines_per_entry)
+            r.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r.read()
         if entry:
             heap_entries.append(
-               (parse_entry_timestamp(entry[0]), entry, entry_size, r))
+                (parse_entry_timestamp(entry[0]), entry, entry_size, r))
 
     heapq.heapify(heap_entries)
 
@@ -156,10 +181,11 @@ def emit_heap_entries(w, path_prefix, heap_entries,
 
 
 class EntryReader(object):
-    def __init__(self, f, path, max_lines_per_entry):
+    def __init__(self, f, path, max_lines_per_entry, close_when_done=True):
         self.f = f
         self.path = path
         self.max_lines_per_entry = max_lines_per_entry
+        self.close_when_done = close_when_done
         self.last_line = None
 
     def read(self):
@@ -175,7 +201,8 @@ class EntryReader(object):
         while self.f:
             self.last_line = self.f.readline()
             if self.last_line == "":
-                self.f.close()
+                if self.close_when_done:
+                    self.f.close()
                 self.f = None
                 return entry, entry_size
 
@@ -214,7 +241,7 @@ def parse_entry_timestamp(line):
     m = re_http_timestamp.match(line)
     if m:
         d = parser.parse(m.group(1), fuzzy=True)
-        return d.strftime("%Y-%m-%dT%H%M%S")
+        return d.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 if __name__ == '__main__':
