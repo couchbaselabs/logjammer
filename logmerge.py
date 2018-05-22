@@ -92,6 +92,9 @@ performing a heap merge.""")
             end=end,
             suffix=args.suffix)
 
+    if args.out != '--':
+        print >>sys.stderr, "\ndone"
+
 
 def process(paths,
             max_lines_per_entry=100,  # Entries that are too long are clipped.
@@ -99,7 +102,9 @@ def process(paths,
             single_line=False,        # dict[path] => initial seek() positions.
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
-            suffix=".log"):           # Suffix used with directory glob'ing.
+            suffix=".log",            # Suffix used with directory glob'ing.
+            w=None,                   # Optional output stream.
+            bar=None):                # Optional progress bar.
     # Find log files.
     paths = expand_paths(paths, "/*" + suffix)
 
@@ -111,28 +116,31 @@ def process(paths,
     heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start, end)
 
     # By default, emit to stdout with no progress display.
-    w = sys.stdout
-    b = None
+    if not w:
+        w = sys.stdout
 
-    # Otherwise, when emitting to a file, display progress on stdout.
-    if out and out != '--':
-        w = open(out, 'w')
+        # Otherwise, when emitting to a file, display progress on stdout.
+        if out and out != '--':
+            w = open(out, 'w')
 
-        # See progressbar2 from https://github.com/WoLpH/python-progressbar
-        import progressbar
+            if not bar:
+                # See progressbar2 https://github.com/WoLpH/python-progressbar
+                import progressbar
 
-        b = progressbar.ProgressBar().start(max_value=total_size)
+                bar = progressbar.ProgressBar()
+
+    if bar:
+        bar.start(max_value=total_size)
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
-                      end=end, single_line=single_line, bar=b)
+                      end=end, single_line=single_line, bar=bar)
 
     if w != sys.stdout:
         w.close()
 
-    if b:
-        b.update(total_size)
-        print >>sys.stderr, "\ndone"
+    if bar:
+        bar.update(total_size)
 
 
 def expand_paths(paths, glob_suffix):
