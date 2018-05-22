@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- mode: Python;-*-
 
-from dateutil import parser
-
 import argparse
 import datetime
 import glob
@@ -10,6 +8,8 @@ import heapq
 import os
 import re
 import sys
+
+from dateutil import parser
 
 
 # Standard timestamp format used for comparing log entries.
@@ -60,6 +60,13 @@ performing a heap merge.""")
                     timestamp, by providing defaults to the start/end params,
                     like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
                     where the optional MINUTES defaults to 1 minute""")
+    ap.add_argument('--wrap', type=int,
+                    help="""wrap long lines to this many chars
+                    (default: %(default)s)""")
+    ap.add_argument('--wrap-indent', type=int, default=2,
+                    help="""when wrapping long lines, secondary lines
+                    will have this # of indentation space chars
+                    (default: %(default)s)""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
@@ -90,7 +97,9 @@ performing a heap merge.""")
             single_line=args.single_line,
             start=start,
             end=end,
-            suffix=args.suffix)
+            suffix=args.suffix,
+            wrap=args.wrap,
+            wrap_indent=args.wrap_indent)
 
     if args.out != '--':
         print >>sys.stderr, "\ndone"
@@ -103,6 +112,8 @@ def process(paths,
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
             suffix=".log",            # Suffix used with directory glob'ing.
+            wrap=None,                # Wrap long lines to this many chars.
+            wrap_indent=None,         # Indentation of wrapped secondary lines.
             w=None,                   # Optional output stream.
             bar=None):                # Optional progress bar.
     # Find log files.
@@ -126,7 +137,6 @@ def process(paths,
             if not bar:
                 # See progressbar2 https://github.com/WoLpH/python-progressbar
                 import progressbar
-
                 bar = progressbar.ProgressBar()
 
     if bar:
@@ -134,7 +144,8 @@ def process(paths,
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
-                      end=end, single_line=single_line, bar=bar)
+                      end=end, single_line=single_line,
+                      wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w != sys.stdout:
         w.close()
@@ -200,7 +211,21 @@ def prepare_heap_entries(paths, max_lines_per_entry, start, end):
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
-                      end=None, single_line=False, bar=None):
+                      end=None, single_line=False,
+                      wrap=None, wrap_indent=None,
+                      bar=None):
+    text_wrapper = None
+    if wrap:
+        import textwrap
+
+        subsequent_indent = ''
+        if wrap_indent:
+            subsequent_indent = ' ' * wrap_indent
+
+        text_wrapper = textwrap.TextWrapper(
+           width=wrap, break_long_words=True,
+           subsequent_indent=subsequent_indent)
+
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
 
@@ -219,6 +244,9 @@ def emit_heap_entries(w, path_prefix, heap_entries,
         for line in entry:
             if single_line:
                 w.write(line[:-1])  # Clip trailing newline.
+            elif text_wrapper:
+                w.write(text_wrapper.fill(line))
+                w.write("\n")
             else:
                 w.write(line)
 
