@@ -173,28 +173,8 @@ def prepare_heap_entries(paths, max_lines_per_entry, start, end):
         f = open(path, 'r')
         r = EntryReader(f, path, max_lines_per_entry)
 
-        if start:  # Optional start timestamp to find with binary search.
-            i = 0
-            j = os.path.getsize(path)
-
-            while i < j:
-                mid = int((i + j) / 2)
-
-                f.seek(mid)
-
-                r2 = EntryReader(f, path, 1, close_when_done=False)
-                r2.read()  # Discard this read as it's likely mid-entry.
-
-                entry, entry_size = r2.read()
-                if entry:
-                    if start > parse_entry_timestamp(entry[0]):
-                        i = mid + 1
-                    else:
-                        j = mid
-                else:
-                    i = j
-
-            f.seek(i)
+        if start:  # Optional start timestamp.
+            seek_to_timestamp(f, path, start)
 
             r = EntryReader(f, path, max_lines_per_entry)
             r.read()  # Discard this read as it's likely mid-entry.
@@ -210,6 +190,33 @@ def prepare_heap_entries(paths, max_lines_per_entry, start, end):
     return heap_entries
 
 
+def seek_to_timestamp(f, path, start_timestamp):
+    """Binary search the log file entries for the start_timestamp,
+       leaving the file at the right seek position."""
+
+    i = 0
+    j = os.path.getsize(path)
+
+    while i < j:
+        mid = int((i + j) / 2)
+
+        f.seek(mid)
+
+        r2 = EntryReader(f, path, 1, close_when_done=False)
+        r2.read()  # Discard this read as it's likely mid-entry.
+
+        entry, entry_size = r2.read()
+        if entry:
+            if start_timestamp > parse_entry_timestamp(entry[0]):
+                i = mid + 1
+            else:
+                j = mid
+        else:
+            i = j
+
+    f.seek(i)
+
+
 def emit_heap_entries(w, path_prefix, heap_entries,
                       end=None, single_line=False,
                       wrap=None, wrap_indent=None,
@@ -223,15 +230,16 @@ def emit_heap_entries(w, path_prefix, heap_entries,
             subsequent_indent = ' ' * wrap_indent
 
         text_wrapper = textwrap.TextWrapper(
-           width=wrap, break_long_words=False,
-           subsequent_indent=subsequent_indent)
+            width=wrap, break_long_words=False,
+            subsequent_indent=subsequent_indent)
+
+        # From https://github.com/python/cpython/blob/2.7/Lib/textwrap.py
         text_wrapper.wordsep_re = \
-           re.compile(
-              r'(\s+|'                                  # any whitespace
-              r',|'                                     # commas
-              r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
-              r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
-              # See https://github.com/python/cpython/blob/2.7/Lib/textwrap.py
+            re.compile(
+                r'(\s+|'                                  # any whitespace
+                r',|'                                     # commas
+                r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
+                r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
 
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
