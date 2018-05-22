@@ -223,8 +223,15 @@ def emit_heap_entries(w, path_prefix, heap_entries,
             subsequent_indent = ' ' * wrap_indent
 
         text_wrapper = textwrap.TextWrapper(
-           width=wrap, break_long_words=True,
+           width=wrap, break_long_words=False,
            subsequent_indent=subsequent_indent)
+        text_wrapper.wordsep_re = \
+           re.compile(
+              r'(\s+|'                                  # any whitespace
+              r',|'                                     # commas
+              r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
+              r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
+              # See https://github.com/python/cpython/blob/2.7/Lib/textwrap.py
 
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
