@@ -112,6 +112,7 @@ def process(paths,
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
             suffix=".log",            # Suffix used with directory glob'ing.
+            visitor=None,             # Optional entry visitor callback.
             wrap=None,                # Wrap long lines to this many chars.
             wrap_indent=None,         # Indentation of wrapped secondary lines.
             w=None,                   # Optional output stream.
@@ -144,7 +145,7 @@ def process(paths,
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
-                      end=end, single_line=single_line,
+                      end=end, single_line=single_line, visitor=visitor,
                       wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w != sys.stdout:
@@ -218,7 +219,7 @@ def seek_to_timestamp(f, path, start_timestamp):
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
-                      end=None, single_line=False,
+                      end=None, single_line=False, visitor=None,
                       wrap=None, wrap_indent=None,
                       bar=None):
     text_wrapper = None
@@ -253,7 +254,12 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                 bar.update(n)
             i += 1
 
-        w.write(r.path[len(path_prefix):])
+        path = r.path[len(path_prefix):]
+
+        if visitor:
+            visitor(path, timestamp, entry, entry_size)
+
+        w.write(path)
         w.write(' ')
 
         for line in entry:
