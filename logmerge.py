@@ -40,6 +40,12 @@ performing a heap merge.""")
                     data from the log entries and emit those in CSV
                     format instead of log entry lines; the FIELDS is
                     a comma-separated list of key names""")
+    ap.add_argument('--match', type=str,
+                    help="""log entries that match this optional
+                    regexp will be emitted""")
+    ap.add_argument('--match-not', type=str,
+                    help="""log entries that do not match this optional
+                    regexp will be emitted""")
     ap.add_argument('--max-lines-per-entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping,
                     where 0 means no limit (default: %(default)s)""")
@@ -98,6 +104,7 @@ performing a heap merge.""")
 
     process(args.path,
             fields=args.fields,
+            match=args.match, match_not=args.match_not,
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
@@ -113,6 +120,8 @@ performing a heap merge.""")
 
 def process(paths,
             fields=None,              # Optional fields to parse & emit as CSV.
+            match=None,
+            match_not=None,
             max_lines_per_entry=100,  # Entries that are too long are clipped.
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
@@ -156,7 +165,8 @@ def process(paths,
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
-                      end=end, single_line=single_line, visitor=visitor,
+                      end=end, match=match, match_not=match_not,
+                      single_line=single_line, visitor=visitor,
                       wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w != sys.stdout:
@@ -240,7 +250,8 @@ def prepare_fields_filter(fields, visitor, w):
 
     field_patterns = []
     for field in fields:
-        field_patterns.append(re.compile(r"\"?" + field + r"\"?[=:,]([\-\d\.]+)"))
+        field_patterns.append(
+            re.compile(r"\"?" + field + r"\"?[=:,]([\-\d\.]+)"))
 
     def fields_filter(path, timestamp, entry, entry_size):
         if visitor:
@@ -279,7 +290,8 @@ def prepare_fields_filter(fields, visitor, w):
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
-                      end=None, single_line=False, visitor=None,
+                      end=None, match=None, match_not=None,
+                      single_line=False, visitor=None,
                       wrap=None, wrap_indent=None,
                       bar=None):
     text_wrapper = None
@@ -302,6 +314,14 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                 r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
                 r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
 
+    re_match = None
+    if match:
+        re_match = re.compile(match)
+
+    re_match_not = None
+    if match_not:
+        re_match_not = re.compile(match_not)
+
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
 
@@ -314,25 +334,41 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                 bar.update(n)
             i += 1
 
-        path = r.path[len(path_prefix):]
+        allowed = True
 
-        if visitor:
-            visitor(path, timestamp, entry, entry_size)
+        if re_match:
+            allowed = False
+            for line in entry:
+                if re_match.search(line):
+                    allowed = True
+                    break
 
-        w.write(path)
-        w.write(' ')
+        if re_match_not:
+            for line in entry:
+                if re_match_not.search(line):
+                    allowed = False
+                    break
 
-        for line in entry:
+        if allowed:
+            path = r.path[len(path_prefix):]
+
+            if visitor:
+                visitor(path, timestamp, entry, entry_size)
+
+            w.write(path)
+            w.write(' ')
+
+            for line in entry:
+                if single_line:
+                    w.write(line[:-1])  # Clip trailing newline.
+                elif text_wrapper:
+                    w.write(text_wrapper.fill(line))
+                    w.write("\n")
+                else:
+                    w.write(line)
+
             if single_line:
-                w.write(line[:-1])  # Clip trailing newline.
-            elif text_wrapper:
-                w.write(text_wrapper.fill(line))
                 w.write("\n")
-            else:
-                w.write(line)
-
-        if single_line:
-            w.write("\n")
 
         entry, entry_size = r.read()
         if entry:
