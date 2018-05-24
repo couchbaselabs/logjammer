@@ -294,26 +294,6 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                       single_line=False, visitor=None,
                       wrap=None, wrap_indent=None,
                       bar=None):
-    text_wrapper = None
-    if wrap:
-        import textwrap
-
-        subsequent_indent = ''
-        if wrap_indent:
-            subsequent_indent = ' ' * wrap_indent
-
-        text_wrapper = textwrap.TextWrapper(
-            width=wrap, break_long_words=False,
-            subsequent_indent=subsequent_indent)
-
-        # From https://github.com/python/cpython/blob/2.7/Lib/textwrap.py
-        text_wrapper.wordsep_re = \
-            re.compile(
-                r'(\s+|'                                  # any whitespace
-                r',|'                                     # commas
-                r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
-                r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
-
     re_match = None
     if match:
         re_match = re.compile(match)
@@ -321,6 +301,8 @@ def emit_heap_entries(w, path_prefix, heap_entries,
     re_match_not = None
     if match_not:
         re_match_not = re.compile(match_not)
+
+    text_wrapper = prepare_text_wrapper(wrap, wrap_indent)
 
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
@@ -334,47 +316,80 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                 bar.update(n)
             i += 1
 
-        allowed = True
-
-        if re_match:
-            allowed = False
-            for line in entry:
-                if re_match.search(line):
-                    allowed = True
-                    break
-
-        if re_match_not:
-            for line in entry:
-                if re_match_not.search(line):
-                    allowed = False
-                    break
-
-        if allowed:
+        if entry_allowed(entry, re_match, re_match_not):
             path = r.path[len(path_prefix):]
 
             if visitor:
                 visitor(path, timestamp, entry, entry_size)
 
-            w.write(path)
-            w.write(' ')
-
-            for line in entry:
-                if single_line:
-                    w.write(line[:-1])  # Clip trailing newline.
-                elif text_wrapper:
-                    w.write(text_wrapper.fill(line))
-                    w.write("\n")
-                else:
-                    w.write(line)
-
-            if single_line:
-                w.write("\n")
+            entry_emit(w, path, entry, single_line, text_wrapper)
 
         entry, entry_size = r.read()
         if entry:
             timestamp = parse_entry_timestamp(entry[0])
             if (not end) or timestamp <= end:
                 heapq.heappush(heap_entries, (timestamp, entry, entry_size, r))
+
+
+def prepare_text_wrapper(wrap, wrap_indent):
+    if not wrap:
+        return None
+
+    import textwrap
+
+    subsequent_indent = ''
+    if wrap_indent:
+        subsequent_indent = ' ' * wrap_indent
+
+    text_wrapper = textwrap.TextWrapper(
+        width=wrap, break_long_words=False,
+        subsequent_indent=subsequent_indent)
+
+    # From https://github.com/python/cpython/blob/2.7/Lib/textwrap.py
+    text_wrapper.wordsep_re = \
+        re.compile(
+            r'(\s+|'                                  # any whitespace
+            r',|'                                     # commas
+            r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'   # hyphenated words
+            r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')   # em-dash
+
+    return text_wrapper
+
+
+def entry_allowed(entry, re_match, re_match_not):
+    allowed = True
+
+    if re_match:
+        allowed = False
+        for line in entry:
+            if re_match.search(line):
+                allowed = True
+                break
+
+    if re_match_not:
+        for line in entry:
+            if re_match_not.search(line):
+                allowed = False
+                break
+
+    return allowed
+
+
+def entry_emit(w, path, entry, single_line, text_wrapper):
+    w.write(path)
+    w.write(' ')
+
+    for line in entry:
+        if single_line:
+            w.write(line[:-1])  # Clip trailing newline.
+        elif text_wrapper:
+            w.write(text_wrapper.fill(line))
+            w.write("\n")
+        else:
+            w.write(line)
+
+    if single_line:
+        w.write("\n")
 
 
 class EntryReader(object):
