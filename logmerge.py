@@ -35,13 +35,18 @@ where the start of the next entry is determined via heuristics
 file are expected to be ordered by timestamp, as %(prog)s operates by
 performing a heap merge.""")
 
+    ap.add_argument('--keys', type=str,
+                    help="""when specified, heuristically parse KEY=value
+                    data from the log entries and emit those in CSV
+                    format instead of log entry lines;
+                    multiple comma-separated KEYS are supported""")
     ap.add_argument('--max-lines-per-entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping,
                     where 0 means no limit (default: %(default)s)""")
     ap.add_argument('--out', type=str, default="--",
                     help="""write to an OUT file instead
-                    of by default to stdout, showing a progress bar
-                    instead on stdout""")
+                    of by default to stdout; when an OUT file is specified,
+                    a progress bar is shown instead on stdout""")
     ap.add_argument('--single-line', type=bool, default=False,
                     help="""collapse multi-line entries into a single line
                     (default: %(default)s)""")
@@ -92,6 +97,7 @@ performing a heap merge.""")
             end = (base + minutes).strftime(timestamp_format)
 
     process(args.path,
+            keys=args.keys,
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
@@ -106,6 +112,7 @@ performing a heap merge.""")
 
 
 def process(paths,
+            keys=None,                # Optional key=val's to parse to CSV.
             max_lines_per_entry=100,  # Entries that are too long are clipped.
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
@@ -139,6 +146,10 @@ def process(paths,
                 # See progressbar2 https://github.com/WoLpH/python-progressbar
                 import progressbar
                 bar = progressbar.ProgressBar()
+
+    # If keys are specified, provide a visitor that emits to a CSV writer.
+    if keys:
+        visitor, w = prepare_keys_filter(keys.split(","), visitor, w)
 
     if bar:
         bar.start(max_value=total_size)
@@ -216,6 +227,52 @@ def seek_to_timestamp(f, path, start_timestamp):
             i = j
 
     f.seek(i)
+
+
+def prepare_keys_filter(keys, visitor, w):
+    fieldnames = ['timestamp', 'path'] + keys
+
+    import csv
+    csv_writer = csv.writer(w)
+    csv_writer.writerow(fieldnames)
+
+    row = [None] * len(fieldnames)
+
+    key_patterns = []
+    for key in keys:
+        key_patterns.append(re.compile(r"\"?" + key + r"\"?[=:,]([\-\d\.]+)"))
+
+    def keys_filter(path, timestamp, entry, entry_size):
+        if visitor:
+            visitor(path, timestamp, entry, entry_size)
+
+        # Search for key_patterns in any line in the entry.
+        matched = False
+
+        for idx, key in enumerate(keys):
+            row[idx+2] = None
+
+            for line in entry:
+                m = key_patterns[idx].search(line)
+                if m:
+                    row[idx+2] = m.group(1)
+                    matched = True
+                    break
+
+        if matched:
+            row[0] = timestamp
+            row[1] = path
+
+            csv_writer.writerow(row)
+
+    class NoopWriter(object):
+        def __init__(self, w): self.w = w
+
+        def write(self, *_): pass
+
+        def close(self): return self.w.close()
+
+    return keys_filter, NoopWriter(w)
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
