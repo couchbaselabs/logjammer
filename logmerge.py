@@ -82,13 +82,28 @@ performing a heap merge.""")
 
     args = ap.parse_args(argv[1:])
 
-    start = args.start
-    end = args.end
+    start, end = parse_near(args.near, args.start, args.end)
 
-    # Optional near param might look like "2018-12-25T03:00:00+/-5",
-    # and works by providing defaults for the start/end params.
-    if args.near:
-        near = args.near.split("+/-")
+    process(args.path,
+            fields=args.fields,
+            match=args.match, match_not=args.match_not,
+            max_lines_per_entry=args.max_lines_per_entry,
+            out=args.out,
+            single_line=args.single_line,
+            start=start, end=end,
+            suffix=args.suffix,
+            wrap=args.wrap,
+            wrap_indent=args.wrap_indent)
+
+    if args.out != '--':
+        print >>sys.stderr, "\ndone"
+
+
+# Optional near param might look like "2018-12-25T03:00:00+/-5",
+# and works by providing defaults for the start/end params.
+def parse_near(near, start, end):
+    if near:
+        near = near.split("+/-")
         base = parser.parse(near[0])
 
         minutes = datetime.timedelta(minutes=1)
@@ -101,20 +116,7 @@ performing a heap merge.""")
         if not end:
             end = (base + minutes).strftime(timestamp_format)
 
-    process(args.path,
-            fields=args.fields,
-            match=args.match, match_not=args.match_not,
-            max_lines_per_entry=args.max_lines_per_entry,
-            out=args.out,
-            single_line=args.single_line,
-            start=start,
-            end=end,
-            suffix=args.suffix,
-            wrap=args.wrap,
-            wrap_indent=args.wrap_indent)
-
-    if args.out != '--':
-        print >>sys.stderr, "\ndone"
+    return start, end
 
 
 def process(paths,
