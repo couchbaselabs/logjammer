@@ -230,7 +230,7 @@ def seek_to_timestamp(f, path, start_timestamp):
 
 
 def prepare_fields_filter(fields, visitor, w):
-    field_names = ['timestamp', 'path'] + fields
+    field_names = ['timestamp', 'dir', 'file'] + fields
 
     import csv
     csv_writer = csv.writer(w)
@@ -250,18 +250,21 @@ def prepare_fields_filter(fields, visitor, w):
         matched = False
 
         for idx, field in enumerate(fields):
-            row[idx+2] = None
+            row[idx+3] = None
 
             for line in entry:
                 m = field_patterns[idx].search(line)
                 if m:
-                    row[idx+2] = m.group(1)
+                    row[idx+3] = m.group(1)
                     matched = True
                     break
 
         if matched:
             row[0] = timestamp
-            row[1] = path
+            row[1] = os.path.dirname(path)
+            row[2] = os.path.basename(path)
+            if row[2].endswith(".log"):
+                row[2] = row[2][:-4]
 
             csv_writer.writerow(row)
 
