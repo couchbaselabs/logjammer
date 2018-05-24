@@ -35,11 +35,11 @@ where the start of the next entry is determined via heuristics
 file are expected to be ordered by timestamp, as %(prog)s operates by
 performing a heap merge.""")
 
-    ap.add_argument('--keys', type=str,
-                    help="""when specified, heuristically parse KEY=value
+    ap.add_argument('--fields', type=str,
+                    help="""when specified, heuristically parse key=value
                     data from the log entries and emit those in CSV
-                    format instead of log entry lines;
-                    multiple comma-separated KEYS are supported""")
+                    format instead of log entry lines; the FIELDS is
+                    a comma-separated list of key names""")
     ap.add_argument('--max-lines-per-entry', type=int, default=100,
                     help="""max number of lines in an entry before clipping,
                     where 0 means no limit (default: %(default)s)""")
@@ -97,7 +97,7 @@ performing a heap merge.""")
             end = (base + minutes).strftime(timestamp_format)
 
     process(args.path,
-            keys=args.keys,
+            fields=args.fields,
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
@@ -112,7 +112,7 @@ performing a heap merge.""")
 
 
 def process(paths,
-            keys=None,                # Optional key=val's to parse to CSV.
+            fields=None,              # Optional fields to parse & emit as CSV.
             max_lines_per_entry=100,  # Entries that are too long are clipped.
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
@@ -147,9 +147,9 @@ def process(paths,
                 import progressbar
                 bar = progressbar.ProgressBar()
 
-    # If keys are specified, provide a visitor that emits to a CSV writer.
-    if keys:
-        visitor, w = prepare_keys_filter(keys.split(","), visitor, w)
+    # If fields are specified, provide a visitor that emits to a CSV writer.
+    if fields:
+        visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
     if bar:
         bar.start(max_value=total_size)
@@ -229,31 +229,31 @@ def seek_to_timestamp(f, path, start_timestamp):
     f.seek(i)
 
 
-def prepare_keys_filter(keys, visitor, w):
-    fieldnames = ['timestamp', 'path'] + keys
+def prepare_fields_filter(fields, visitor, w):
+    field_names = ['timestamp', 'path'] + fields
 
     import csv
     csv_writer = csv.writer(w)
-    csv_writer.writerow(fieldnames)
+    csv_writer.writerow(field_names)
 
-    row = [None] * len(fieldnames)
+    row = [None] * len(field_names)
 
-    key_patterns = []
-    for key in keys:
-        key_patterns.append(re.compile(r"\"?" + key + r"\"?[=:,]([\-\d\.]+)"))
+    field_patterns = []
+    for field in fields:
+        field_patterns.append(re.compile(r"\"?" + field + r"\"?[=:,]([\-\d\.]+)"))
 
-    def keys_filter(path, timestamp, entry, entry_size):
+    def fields_filter(path, timestamp, entry, entry_size):
         if visitor:
             visitor(path, timestamp, entry, entry_size)
 
-        # Search for key_patterns in any line in the entry.
+        # Search for field_patterns in any line in the entry.
         matched = False
 
-        for idx, key in enumerate(keys):
+        for idx, field in enumerate(fields):
             row[idx+2] = None
 
             for line in entry:
-                m = key_patterns[idx].search(line)
+                m = field_patterns[idx].search(line)
                 if m:
                     row[idx+2] = m.group(1)
                     matched = True
@@ -272,7 +272,7 @@ def prepare_keys_filter(keys, visitor, w):
 
         def close(self): return self.w.close()
 
-    return keys_filter, NoopWriter(w)
+    return fields_filter, NoopWriter(w)
 
 
 def emit_heap_entries(w, path_prefix, heap_entries,
