@@ -15,7 +15,6 @@ from dateutil import parser
 # Standard timestamp format used for comparing log entries.
 timestamp_format = "%Y-%m-%dT%H:%M:%S"
 
-
 # Non-whitespace chars followed by "YYYY-MM-DDThh:mm:ss.sss".
 re_entry_timestamp = re.compile(
     r"^\S*(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d)")
