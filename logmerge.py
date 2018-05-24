@@ -146,23 +146,14 @@ def process(paths,
 
     # By default, emit to stdout with no progress display.
     if not w:
-        w = sys.stdout
+        w, bar = prepare_out(out, bar)
 
-        # Otherwise, when emitting to a file, display progress on stdout.
-        if out and out != '--':
-            w = open(out, 'w')
-
-            if not bar:
-                # See progressbar2 https://github.com/WoLpH/python-progressbar
-                import progressbar
-                bar = progressbar.ProgressBar()
+    if bar:
+        bar.start(max_value=total_size)
 
     # If fields are specified, provide a visitor that emits to a CSV writer.
     if fields:
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
-
-    if bar:
-        bar.start(max_value=total_size)
 
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
@@ -238,6 +229,21 @@ def seek_to_timestamp(f, path, start_timestamp):
             i = j
 
     f.seek(i)
+
+
+def prepare_out(out, bar):
+    w = sys.stdout
+
+    if out and out != '--':
+        w = open(out, 'w')
+
+        if not bar:
+            # When emitting to a file, display progress on stdout.
+            # See progressbar2 https://github.com/WoLpH/python-progressbar
+            import progressbar
+            bar = progressbar.ProgressBar()
+
+    return w, bar
 
 
 def prepare_fields_filter(fields, visitor, w):
