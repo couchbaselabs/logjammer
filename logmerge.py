@@ -286,13 +286,6 @@ def prepare_fields_filter(fields, visitor, w):
 
             csv_writer.writerow(row)
 
-    class NoopWriter(object):
-        def __init__(self, w): self.w = w
-
-        def write(self, *_): pass
-
-        def close(self): return self.w.close()
-
     return fields_filter, NoopWriter(w)
 
 
@@ -301,13 +294,9 @@ def emit_heap_entries(w, path_prefix, heap_entries,
                       single_line=False, visitor=None,
                       wrap=None, wrap_indent=None,
                       bar=None):
-    re_match = None
-    if match:
-        re_match = re.compile(match)
+    re_match = match and re.compile(match)
 
-    re_match_not = None
-    if match_not:
-        re_match_not = re.compile(match_not)
+    re_match_not = match_not and re.compile(match_not)
 
     text_wrapper = prepare_text_wrapper(wrap, wrap_indent)
 
@@ -451,6 +440,14 @@ def parse_entry_timestamp(line):
     if m:
         d = parser.parse(m.group(1), fuzzy=True)
         return d.strftime(timestamp_format)
+
+
+class NoopWriter(object):
+    def __init__(self, w): self.w = w
+
+    def write(self, *_): pass
+
+    def close(self): return self.w.close()
 
 
 if __name__ == '__main__':
