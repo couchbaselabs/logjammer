@@ -168,8 +168,7 @@ def process(paths,
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
                       end=end, match=match, match_not=match_not,
                       single_line=single_line,
-                      timestamp_prefix=timestamp_prefix,
-                      visitor=visitor,
+                      timestamp_prefix=timestamp_prefix, visitor=visitor,
                       wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w != sys.stdout:
@@ -258,6 +257,9 @@ def prepare_out(out, bar):
 
 
 def prepare_fields_filter(fields, visitor, w):
+    """Prepare a visitor that filters key=value data from each entry,
+       emitting CSV to the given writer."""
+
     field_names = ['timestamp', 'dir', 'file'] + fields
 
     import csv
@@ -272,7 +274,7 @@ def prepare_fields_filter(fields, visitor, w):
             re.compile(r"\"?" + field + r"\"?[=:,]([\-\d\.]+)"))
 
     def fields_filter(path, timestamp, entry, entry_size):
-        if visitor:
+        if visitor:  # Wrap the optional, input visitor.
             visitor(path, timestamp, entry, entry_size)
 
         # Search for field_patterns in any line in the entry.
@@ -376,7 +378,7 @@ def entry_allowed(entry, re_match, re_match_not):
                 allowed = True
                 break
 
-    if re_match_not:
+    if re_match_not:  # Inspired by 'grep -v'.
         for line in entry:
             if re_match_not.search(line):
                 allowed = False
@@ -388,7 +390,7 @@ def entry_allowed(entry, re_match, re_match_not):
 def entry_emit(w, path, timestamp, entry,
                single_line, timestamp_prefix, text_wrapper):
     if timestamp_prefix:
-        w.write(timestamp)
+        w.write(timestamp or "0000-00-00T00:00:00")
         w.write(' ')
 
     w.write(path)
