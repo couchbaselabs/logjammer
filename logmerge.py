@@ -25,9 +25,9 @@ re_http_timestamp = re.compile(
     r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
 
 
-def main(argv, ap=None):
-    if not ap:
-        ap = argparse.ArgumentParser(
+def main(argv, argument_parser=None, visitor=None):
+    if not argument_parser:
+        argument_parser = argparse.ArgumentParser(
             description='%(prog)s merges entries from log files by timestamp',
             epilog="""An entry in a log file may span more than one line,
 where the start of the next entry is determined via heuristics
@@ -36,9 +36,9 @@ file should already be ordered by timestamp.
 See also: github.com/couchbaselabs/logmerge
 """)
 
-    ap = add_arguments(ap)
+    argument_parser = add_arguments(argument_parser)
 
-    args = ap.parse_args(argv[1:])
+    args = argument_parser.parse_args(argv[1:])
 
     start, end = parse_near(args.near, args.start, args.end)
 
@@ -51,6 +51,7 @@ See also: github.com/couchbaselabs/logmerge
             start=start, end=end,
             suffix=args.suffix,
             timestamp_prefix=args.timestamp_prefix,
+            visitor=visitor,
             wrap=args.wrap,
             wrap_indent=args.wrap_indent)
 
