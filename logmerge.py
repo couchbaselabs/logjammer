@@ -12,6 +12,16 @@ import sys
 from dateutil import parser
 
 
+main_description = '%(prog)s merges entries from log files by timestamp'
+
+main_epilog = """
+An entry in a log file may span more than one line,
+where the start of the next entry is determined via heuristics
+(mainly, looking for timestamps).  The log file entries in each log
+file should already be ordered by timestamp.  See also:
+github.com/couchbaselabs/logmerge
+"""
+
 # Standard timestamp format used for comparing log entries.
 timestamp_format = "%Y-%m-%dT%H:%M:%S"
 
@@ -28,13 +38,8 @@ re_http_timestamp = re.compile(
 def main(argv, argument_parser=None, visitor=None):
     if not argument_parser:
         argument_parser = argparse.ArgumentParser(
-            description='%(prog)s merges entries from log files by timestamp',
-            epilog="""An entry in a log file may span more than one line,
-where the start of the next entry is determined via heuristics
-(mainly, looking for timestamps).  The log file entries in each log
-file should already be ordered by timestamp.
-See also: github.com/couchbaselabs/logmerge
-""")
+            description=main_description,
+            epilog=main_epilog)
 
     argument_parser = add_arguments(argument_parser)
 
