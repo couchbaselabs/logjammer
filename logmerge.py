@@ -25,15 +25,18 @@ re_http_timestamp = re.compile(
     r"^\S+ - \S+ \[(\d\d/\w\w\w/\d\d\d\d:\d\d:\d\d:\d\d) ")
 
 
-def main(argv):
-    ap = add_arguments(argparse.ArgumentParser(
-       description='%(prog)s merges entries from log files by timestamp',
-       epilog="""An entry in a log file may span more than one line,
+def main(argv, ap=None):
+    if not ap:
+        ap = argparse.ArgumentParser(
+            description='%(prog)s merges entries from log files by timestamp',
+            epilog="""An entry in a log file may span more than one line,
 where the start of the next entry is determined via heuristics
 (mainly, looking for timestamps).  The log file entries in each log
 file should already be ordered by timestamp.
 See also: github.com/couchbaselabs/logmerge
-"""))
+""")
+
+    ap = add_arguments(ap)
 
     args = ap.parse_args(argv[1:])
 
