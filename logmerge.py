@@ -31,8 +31,9 @@ def main(argv):
        epilog="""An entry in a log file may span more than one line,
 where the start of the next entry is determined via heuristics
 (mainly, looking for timestamps).  The log file entries in each log
-file are expected to be ordered by timestamp, as %(prog)s operates by
-performing a heap merge."""))
+file should already be ordered by timestamp.
+See also: github.com/couchbaselabs/logmerge
+"""))
 
     args = ap.parse_args(argv[1:])
 
@@ -84,16 +85,19 @@ def add_arguments(ap):
                     timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
     ap.add_argument('--near', type=str,
                     help="""emit log entries that are near the given
-                    timestamp, by providing defaults to the start/end params,
-                    like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
-                    where the optional MINUTES defaults to 1 minute""")
+                    timestamp, by providing defaults to the start/end
+                    arguments, like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
+                    where the optional MINUTES defaults to 1 minute;
+                    example: 2018-01-31T17:15:00+/-10""")
     ap.add_argument('--suffix', type=str, default=".log",
                     help="""when expanding directory paths,
                     find log files that match this glob suffix
                     (default: %(default)s)""")
     ap.add_argument('--timestamp-prefix', type=bool,
-                    help="""a normalized timestamp will be emitted
-                    first for each entry""")
+                    help="""a normalized timestamp will be emitted first
+                    for each entry, to allow for easier post-processing,
+                    often used with --single-line
+                    (default: %(default)s)""")
     ap.add_argument('--wrap', type=int,
                     help="""wrap long lines to this many chars
                     (default: %(default)s)""")
