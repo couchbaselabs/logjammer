@@ -26,14 +26,35 @@ re_http_timestamp = re.compile(
 
 
 def main(argv):
-    ap = argparse.ArgumentParser(
+    ap = add_arguments(argparse.ArgumentParser(
        description='%(prog)s merges entries from log files by timestamp',
        epilog="""An entry in a log file may span more than one line,
 where the start of the next entry is determined via heuristics
 (mainly, looking for timestamps).  The log file entries in each log
 file are expected to be ordered by timestamp, as %(prog)s operates by
-performing a heap merge.""")
+performing a heap merge."""))
 
+    args = ap.parse_args(argv[1:])
+
+    start, end = parse_near(args.near, args.start, args.end)
+
+    process(args.path,
+            fields=args.fields,
+            match=args.match, match_not=args.match_not,
+            max_lines_per_entry=args.max_lines_per_entry,
+            out=args.out,
+            single_line=args.single_line,
+            start=start, end=end,
+            suffix=args.suffix,
+            timestamp_prefix=args.timestamp_prefix,
+            wrap=args.wrap,
+            wrap_indent=args.wrap_indent)
+
+    if args.out != '--':
+        print >>sys.stderr, "\ndone"
+
+
+def add_arguments(ap):
     ap.add_argument('--fields', type=str,
                     help="""when specified, heuristically parse key=value
                     data from the log entries and emit those in CSV
@@ -83,24 +104,7 @@ performing a heap merge.""")
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
-    args = ap.parse_args(argv[1:])
-
-    start, end = parse_near(args.near, args.start, args.end)
-
-    process(args.path,
-            fields=args.fields,
-            match=args.match, match_not=args.match_not,
-            max_lines_per_entry=args.max_lines_per_entry,
-            out=args.out,
-            single_line=args.single_line,
-            start=start, end=end,
-            suffix=args.suffix,
-            timestamp_prefix=args.timestamp_prefix,
-            wrap=args.wrap,
-            wrap_indent=args.wrap_indent)
-
-    if args.out != '--':
-        print >>sys.stderr, "\ndone"
+    return ap
 
 
 # Optional near param might look like "2018-12-25T03:00:00+/-5",
