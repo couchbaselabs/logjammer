@@ -55,10 +55,6 @@ performing a heap merge.""")
     ap.add_argument('--single-line', type=bool, default=False,
                     help="""collapse multi-line entries into a single line
                     (default: %(default)s)""")
-    ap.add_argument('--suffix', type=str, default=".log",
-                    help="""when expanding directory paths,
-                    find log files that match this glob suffix
-                    (default: %(default)s)""")
     ap.add_argument('--start', type=str,
                     help="""emit only entries that come at or after this
                     timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
@@ -70,6 +66,13 @@ performing a heap merge.""")
                     timestamp, by providing defaults to the start/end params,
                     like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
                     where the optional MINUTES defaults to 1 minute""")
+    ap.add_argument('--suffix', type=str, default=".log",
+                    help="""when expanding directory paths,
+                    find log files that match this glob suffix
+                    (default: %(default)s)""")
+    ap.add_argument('--timestamp-prefix', type=bool,
+                    help="""a normalized timestamp will be emitted
+                    first for each entry""")
     ap.add_argument('--wrap', type=int,
                     help="""wrap long lines to this many chars
                     (default: %(default)s)""")
@@ -92,6 +95,7 @@ performing a heap merge.""")
             single_line=args.single_line,
             start=start, end=end,
             suffix=args.suffix,
+            timestamp_prefix=args.timestamp_prefix,
             wrap=args.wrap,
             wrap_indent=args.wrap_indent)
 
@@ -129,6 +133,7 @@ def process(paths,
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
             suffix=".log",            # Suffix used with directory glob'ing.
+            timestamp_prefix=False,   # Emit normalized timestamp prefix.
             visitor=None,             # Optional entry visitor callback.
             wrap=None,                # Wrap long lines to this many chars.
             wrap_indent=None,         # Indentation of wrapped secondary lines.
@@ -158,7 +163,9 @@ def process(paths,
     # Print heap entries until all entries are consumed.
     emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
                       end=end, match=match, match_not=match_not,
-                      single_line=single_line, visitor=visitor,
+                      single_line=single_line,
+                      timestamp_prefix=timestamp_prefix,
+                      visitor=visitor,
                       wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w != sys.stdout:
@@ -291,7 +298,9 @@ def prepare_fields_filter(fields, visitor, w):
 
 def emit_heap_entries(w, path_prefix, heap_entries,
                       end=None, match=None, match_not=None,
-                      single_line=False, visitor=None,
+                      single_line=False,
+                      timestamp_prefix=False,
+                      visitor=None,
                       wrap=None, wrap_indent=None,
                       bar=None):
     re_match = match and re.compile(match)
@@ -318,7 +327,8 @@ def emit_heap_entries(w, path_prefix, heap_entries,
             if visitor:
                 visitor(path, timestamp, entry, entry_size)
 
-            entry_emit(w, path, entry, single_line, text_wrapper)
+            entry_emit(w, path, timestamp, entry,
+                       single_line, timestamp_prefix, text_wrapper)
 
         entry, entry_size = r.read()
         if entry:
@@ -371,7 +381,12 @@ def entry_allowed(entry, re_match, re_match_not):
     return allowed
 
 
-def entry_emit(w, path, entry, single_line, text_wrapper):
+def entry_emit(w, path, timestamp, entry,
+               single_line, timestamp_prefix, text_wrapper):
+    if timestamp_prefix:
+        w.write(timestamp)
+        w.write(' ')
+
     w.write(path)
     w.write(' ')
 
