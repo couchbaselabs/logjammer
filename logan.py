@@ -12,6 +12,16 @@ import logmerge
 import networkx as nx
 
 
+# IDEAS:
+# terms
+# commonly seen sequences
+# what about uuid's
+# numbers are special (except when they're in a uuid?)
+# longest common substring
+# backtrack as it's actually not a common substring after all?
+# e.g., date changes hours
+
+
 def main(argv):
     file_ids, pos_term_counts, g = process(argv)
 
@@ -84,15 +94,6 @@ pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
 re_num_ish = re.compile(pattern_num_ish)
 
 re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
-
-
-# terms
-# commonly seen sequences
-# what about uuid's
-# numbers are special (except when they're in a uuid?)
-# longest common substring
-# backtrack as it's actually not a common substring after all?
-# e.g., date changes hours
 
 
 def prepare_visitor():
