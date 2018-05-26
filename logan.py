@@ -20,6 +20,38 @@ import logmerge
 # e.g., date changes hours
 
 
+# Need 32 hex chars for a uid pattern.
+pattern_uid = "[a-f0-9]" * 32
+
+# An example rev to initialize pattern_rev.
+ex_rev = \
+    "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
+    "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
+
+pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
+
+# A number-like pattern that's an optionally dotted or dashed or
+# slashed or colon'ed number, or a UID or a rev.  Patterns like
+# YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
+pattern_num_ish = [
+    ("hex", r"0x[a-f0-9][a-f0-9]+"),
+    ("hex", r"0x[A-F0-9][A-F0-9]+"),
+    ("uid", pattern_uid),
+    ("rev", pattern_rev),
+    ("ymd", r"\d\d\d\d-\d\d-\d\d"),
+    ("hms", r"\d\d:\d\d:\d\d"),
+    ("num", r"[\d\-][\d\.\-/,]*")]
+
+pattern_num_ish_joined = "(" + \
+                         "|".join(["(" + p[1] + ")"
+                                   for p in pattern_num_ish]) + \
+                         ")"
+
+re_num_ish = re.compile(pattern_num_ish_joined)
+
+re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
+
+
 def main(argv):
     file_pos_term_counts, file_patterns = process(argv)
 
@@ -64,36 +96,6 @@ def process(argv):
                   visitor=visitor)
 
     return file_pos_term_counts, file_patterns
-
-
-# Need 32 hex chars for a uid pattern.
-pattern_uid = "[a-f0-9]" * 32
-
-# An example rev to initialize pattern_rev.
-ex_rev = \
-    "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
-    "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
-
-pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
-
-# A number-like pattern that's an optionally dotted or dashed or
-# slashed or colon'ed number, or a UID or a rev.  Patterns like
-# YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
-pattern_num_ish = [
-    ("hex", r"0x[a-f0-9][a-f0-9]+"),
-    ("hex", r"0x[A-F0-9][A-F0-9]+"),
-    ("num", r"[\d\-][\d\.\-\:/,]*"),
-    ("uid", pattern_uid),
-    ("rev", pattern_rev)]
-
-pattern_num_ish_joined = "(" + \
-                         "|".join(["(" + p[1] + ")"
-                                   for p in pattern_num_ish]) + \
-                         ")"
-
-re_num_ish = re.compile(pattern_num_ish_joined)
-
-re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 def prepare_visitor():
@@ -147,9 +149,16 @@ def prepare_visitor():
             if i < len(sections):
                 num_ish = sections[i]
 
-                i += 1 + len(pattern_num_ish)
+                num_ish_kind = None
+                j = 0
+                while j < len(pattern_num_ish):
+                    if sections[i + 1 + j]:
+                        num_ish_kind = j
+                    j += 1
 
-                pattern.append("*")
+                pattern.append("#" + pattern_num_ish[num_ish_kind][0])
+
+                i += 1 + len(pattern_num_ish)
 
         if pattern:
             pattern_tuple = tuple(pattern)
