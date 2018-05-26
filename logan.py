@@ -9,8 +9,6 @@ import sys
 
 import logmerge
 
-import networkx as nx
-
 
 # IDEAS:
 # terms
@@ -23,24 +21,24 @@ import networkx as nx
 
 
 def main(argv):
-    file_ids, file_pos_term_counts, g, templates = process(argv)
+    file_ids, file_pos_term_counts, file_patterns = process(argv)
 
     print "len(file_ids)", len(file_ids)
 
     print "len(file_pos_term_counts)", len(file_pos_term_counts)
 
     for file_name, pos_term_counts in file_pos_term_counts.iteritems():
-        print file_name
-        print "  len(pos_term_counts)", len(pos_term_counts)
-        print "  sum(pos_term_counts.values())", sum(pos_term_counts.values())
-        print "  most common", pos_term_counts.most_common(10)
-        print "  least common", pos_term_counts.most_common()[:-10:-1]
+        print "  ", file_name
+        print "    len(pos_term_counts)", len(pos_term_counts)
+        print "    sum(pos_term_counts.values)", sum(pos_term_counts.values())
+        print "    most common", pos_term_counts.most_common(10)
+        print "    least common", pos_term_counts.most_common()[:-10:-1]
 
-    print "g.number_of_nodes()", g.number_of_nodes()
+    print "len(file_patterns)", len(file_patterns)
 
-    print "g.number_of_edges()", g.number_of_edges()
-
-    print "len(templates)", len(templates)
+    for file_name, patterns in file_patterns.iteritems():
+        print "  ", file_name
+        print "    len(patterns)", len(patterns)
 
 
 def process(argv):
@@ -60,17 +58,14 @@ def process(argv):
                        (extends logmerge.py feature set)""")
 
     # Custom visitor.
-    visitor, file_ids, file_pos_term_counts, g = prepare_visitor()
+    visitor, file_ids, file_pos_term_counts, file_patterns = prepare_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
 
-    # Find templates from directed graph g.
-    templates = [] # build_templates(g)
-
-    return file_ids, file_pos_term_counts, g, templates
+    return file_ids, file_pos_term_counts, file_patterns
 
 
 # Need 32 hex chars for a uuid pattern.
@@ -108,7 +103,8 @@ def prepare_visitor():
     # Keyed by file name, value is collections.Counter.
     file_pos_term_counts = {}
 
-    g = nx.DiGraph()
+    # Keyed by file name, value is dict of patterns.
+    file_patterns = {}
 
     def v(path, timestamp, entry, entry_size):
         file_name = os.path.basename(path)
@@ -123,19 +119,27 @@ def prepare_visitor():
             pos_term_counts = collections.Counter()
             file_pos_term_counts[file_name] = pos_term_counts
 
-        pos_term_prev = None
+        patterns = file_patterns.get(file_name)
+        if patterns is None:
+            patterns = {}
+            file_patterns[file_name] = patterns
 
-        pos_terms_or_vals = []
-
+        # Only look at the first line of the entry.
         entry_first_line = entry[0].strip()
 
+        # Split the first line into num'ish and non-num'ish sections.
         sections = re.split(re_num_ish, entry_first_line)
+
+        pattern = []
 
         i = 0
         while i < len(sections):
+            # First, handle a non-num'ish section.
             section = sections[i]
+
             i += 1
 
+            # Split the non-num'ish section into terms.
             for term in re.split(re_section_split, section):
                 if not term:
                     continue
@@ -144,84 +148,28 @@ def prepare_visitor():
                 # file_id and term position.
                 pos_term = \
                     file_id + ":" + \
-                    str(len(pos_terms_or_vals)) + ">" + \
+                    str(len(pattern)) + ">" + \
                     term
-
-                pos_terms_or_vals.append(pos_term)
 
                 pos_term_counts.update([pos_term])
 
-                if pos_term_prev:
-                    g.add_edge(pos_term_prev, pos_term)
+                pattern.append(pos_term)
 
-                pos_term_prev = pos_term
-
+            # Next, handle a num-ish section.
             if i < len(sections):
                 num_ish = sections[i]
+
                 i += pattern_num_ish_groups
 
-                pos_terms_or_vals.append(num_ish)
+                pattern.append("*")
 
-        if g.number_of_nodes() < 1000:  # Emit some early sample lines.
-            print pos_terms_or_vals
+        if pattern:
+            pattern_tuple = tuple(pattern)
+            if not patterns.get(pattern_tuple):
+                patterns[tuple(pattern)] = True
+                print file_name, pattern
 
-    return v, file_ids, file_pos_term_counts, g
-
-
-def build_templates(g):
-    templates = {}
-
-    for pos_term in g.nodes:
-        # A pos_term with no predecessors is an initial template pos_term.
-        if len(g.pred[pos_term]) <= 0:
-            expand_template(g, pos_term, (), 0, templates)
-
-    return templates
-
-
-def expand_template(g, pos_term, template_so_far, template_so_far_len, templates):
-    file_id, term_position, term = parse_pos_term(pos_term)
-
-    while template_so_far_len < term_position:
-        template_so_far = ("*", template_so_far)
-        template_so_far_len += 1
-
-    template_so_far = (pos_term, template_so_far)
-    template_so_far_len += 1
-
-    if len(g.succ[pos_term]) < 100:
-        pos_term_successors = g.successors(pos_term)
-    else:
-        pos_term_successors = {}
-        for j in g.successors(pos_term):
-            for k in g.successors(j):
-                pos_term_successors[k] = True
-        pos_term_successors = pos_term_successors.keys()
-
-    i = 0
-    for pos_term_succ in pos_term_successors:
-        expand_template(g, pos_term_succ,
-                        template_so_far, template_so_far_len, templates)
-        i += 1
-
-    if not i:
-        template = tuple(reverse_nested_pairs(template_so_far, []))
-
-        if templates.get(template):
-            print "   !!! SAVED", template
-        else:
-            print len(templates), template
-
-        templates[template] = True
-
-
-# Given nested tuple pairs like (a, (b, (c, (d, ())))),
-# append to acc in reverse order, producing [d, c, b, a].
-def reverse_nested_pairs(chain, acc):
-    if len(chain) > 1:
-        reverse_nested_pairs(chain[1], acc)
-        acc.append(chain[0])
-    return acc
+    return v, file_ids, file_pos_term_counts, file_patterns
 
 
 def parse_pos_term(pos_term):
