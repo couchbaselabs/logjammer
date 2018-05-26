@@ -30,17 +30,25 @@ ex_rev = \
 
 pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 
-# A number-like pattern that's an optionally dotted or dashed or
-# slashed or colon'ed number, or a UID or a rev.  Patterns like
-# YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
+# Some number-like patterns such as optionally dotted or dashed or
+# slashed or colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and
+# IP addresses would also be matched.
 pattern_num_ish = [
     ("hex", r"0x[a-f0-9][a-f0-9]+"),
     ("hex", r"0x[A-F0-9][A-F0-9]+"),
     ("uid", pattern_uid),
     ("rev", pattern_rev),
     ("ymd", r"\d\d\d\d-\d\d-\d\d"),
-    ("hms", r"\d\d:\d\d:\d\d"),
-    ("num", r"[\d\-][\d\.\-/,]*")]
+    ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d"),
+    ("ip4", r"\d+\.\d+\.\d+\.\d+"),
+    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),
+    ("neg", r"-\d[\d\.]*"),
+    ("pos", r"\d[\d\.]*")]
 
 pattern_num_ish_joined = "(" + \
                          "|".join(["(" + p[1] + ")"
@@ -73,8 +81,13 @@ def main(argv):
         patterns = patterns_dict.keys()
         patterns.sort()
 
-        for i, pattern in enumerate(patterns):
-            print "      ", file_name, i, pattern
+        for i, pattern_tuple in enumerate(patterns):
+            pattern_info = patterns_dict[pattern_tuple]
+
+            print "      ", file_name, i, pattern_tuple, pattern_info.total
+
+            for recent in list(pattern_info.recents):
+                print "        ", recent
 
 
 def process(argv):
@@ -108,7 +121,7 @@ def prepare_visitor():
     # Keyed by file name, value is collections.Counter.
     file_pos_term_counts = {}
 
-    # Keyed by file name, value is dict of patterns.
+    # Keyed by file name, value is dict of pattern => PatternInfo.
     file_patterns = {}
 
     def v(path, timestamp, entry, entry_size):
@@ -166,9 +179,16 @@ def prepare_visitor():
 
         if pattern:
             pattern_tuple = tuple(pattern)
-            if not patterns.get(pattern_tuple):
-                patterns[tuple(pattern)] = True
-                print file_name, pattern
+
+            pattern_info = patterns.get(pattern_tuple)
+            if not pattern_info:
+                pattern_info = PatternInfo(pattern_tuple, timestamp, entry)
+                patterns[pattern_tuple] = pattern_info
+
+                print path, pattern
+
+            pattern_info.total += 1
+            pattern_info.recents.append((timestamp, entry_first_line))
 
     return v, file_pos_term_counts, file_patterns
 
@@ -177,6 +197,17 @@ def parse_pos_term(pos_term):
     i = pos_term.find('>')
 
     return int(pos_term[0:i]), pos_term[i+1:]
+
+
+default_pattern_info_max_recent = 100
+
+class PatternInfo(object):
+    def __init__(self, pattern_tuple, first_timestamp, first_entry):
+        self.pattern_tuple = pattern_tuple
+        self.first_timestamp = first_timestamp
+        self.first_entry = first_entry
+        self.total = 0
+        self.recents = collections.deque((), default_pattern_info_max_recent)
 
 
 if __name__ == '__main__':
