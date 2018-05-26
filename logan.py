@@ -66,9 +66,15 @@ def main(argv):
 
     print "len(file_patterns)", len(file_patterns)
 
-    for file_name, patterns in file_patterns.iteritems():
+    for file_name, patterns_dict in file_patterns.iteritems():
         print "  ", file_name
-        print "    len(patterns)", len(patterns)
+        print "    len(patterns_dict)", len(patterns_dict)
+
+        patterns = patterns_dict.keys()
+        patterns.sort()
+
+        for i, pattern in enumerate(patterns):
+            print "      ", file_name, i, pattern
 
 
 def process(argv):
