@@ -12,22 +12,28 @@ import networkx as nx
 
 
 def main(argv):
-    file_ids, term_counts, g = process(argv)
+    file_ids, pos_term_counts, g = process(argv)
 
-    print term_counts
+    print pos_term_counts
 
-    print term_counts.most_common(10)
+    print pos_term_counts.most_common(10)
 
-    print "len(term_counts)", len(term_counts)
+    print "len(pos_term_counts)", len(pos_term_counts)
 
-    print "sum(term_counts.values())", sum(term_counts.values())
+    print "sum(pos_term_counts.values())", sum(pos_term_counts.values())
 
     print "g.number_of_nodes()", g.number_of_nodes()
 
     print "g.number_of_edges()", g.number_of_edges()
 
+    print "pos_terms with no predecessors"
+    for pos_term in g.nodes:
+        if len(g.pred[pos_term]) <= 0:
+            print "  ", pos_term
+
 
 def process(argv):
+    # Default to /dev/null for the --out argument.
     has_out_argument = False
     for arg in argv:
         if arg.startswith("--out="):
@@ -41,13 +47,13 @@ def process(argv):
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
-    visitor, file_ids, term_counts, g = prepare_visitor()
+    visitor, file_ids, pos_term_counts, g = prepare_visitor()
 
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
 
-    return file_ids, term_counts, g
+    return file_ids, pos_term_counts, g
 
 
 # Need 32 hex chars for a uuid pattern.
@@ -73,7 +79,7 @@ pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
 
 re_num_ish = re.compile(pattern_num_ish)
 
-re_words_split = re.compile(r"[^a-zA-z0-9_\-/]+")
+re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 # terms
@@ -88,7 +94,7 @@ re_words_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 def prepare_visitor():
     file_ids = {}
 
-    term_counts = collections.Counter()
+    pos_term_counts = collections.Counter()
 
     g = nx.DiGraph()
 
@@ -97,45 +103,52 @@ def prepare_visitor():
 
         file_id = file_ids.get(file_name)
         if file_id is None:
-            file_id = len(file_ids)
+            file_id = str(len(file_ids))
             file_ids[file_name] = file_id
 
-        file_id_str = str(file_id)
+        pos_term_prev = None
 
-        first_line = entry[0].strip()
+        pos_terms_or_vals = []
 
-        parts = re.split(re_num_ish, first_line)
+        entry_first_line = entry[0].strip()
 
-        a = []
-
-        prev_term = None
+        sections = re.split(re_num_ish, entry_first_line)
 
         i = 0
-        while i < len(parts):
-            words = parts[i]
+        while i < len(sections):
+            section = sections[i]
             i += 1
 
-            for term in re.split(re_words_split, words):
-                if term:
-                    # Prefix file_id and term position onto term.
-                    term = file_id_str + ":" + str(len(a)) + ">" + term
+            for term in re.split(re_section_split, section):
+                if not term:
+                    continue
 
-                    term_counts.update([term])
-                    a.append(term)
+                # A "positioned term" encodes a term with its source
+                # file_id and term position.
+                pos_term = \
+                    file_id + ":" + \
+                    str(len(pos_terms_or_vals)) + ">" + \
+                    term
 
-                    if prev_term:
-                        g.add_edge(prev_term, term)
+                pos_terms_or_vals.append(pos_term)
 
-                    prev_term = term
+                pos_term_counts.update([pos_term])
 
-            if i < len(parts):
-                a.append(parts[i])
+                if pos_term_prev:
+                    g.add_edge(pos_term_prev, pos_term)
+
+                pos_term_prev = pos_term
+
+            if i < len(sections):
+                num_ish = sections[i]
                 i += pattern_num_ish_groups
 
-        if g.number_of_nodes() < 1000:  # Emit some early sample lines.
-            print a
+                pos_terms_or_vals.append(num_ish)
 
-    return v, file_ids, term_counts, g
+        if g.number_of_nodes() < 1000:  # Emit some early sample lines.
+            print pos_terms_or_vals
+
+    return v, file_ids, pos_term_counts, g
 
 
 if __name__ == '__main__':
