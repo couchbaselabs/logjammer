@@ -23,9 +23,16 @@ import networkx as nx
 
 
 def main(argv):
-    file_ids, pos_term_counts, g, templates = process(argv)
+    file_ids, file_pos_term_counts, g, templates = process(argv)
 
-    print pos_term_counts.most_common(10)
+    print "len(file_ids)", len(file_ids)
+
+    print "len(file_pos_term_counts)", len(file_pos_term_counts)
+
+    for file_name, pos_term_counts in file_pos_term_counts.iteritems():
+        print file_name
+        print "  most common", pos_term_counts.most_common(10)
+        print "  least common", pos_term_counts.most_common()[:-10:-1]
 
     print "len(pos_term_counts)", len(pos_term_counts)
 
@@ -55,17 +62,17 @@ def process(argv):
                        (extends logmerge.py feature set)""")
 
     # Custom visitor.
-    visitor, file_ids, pos_term_counts, g = prepare_visitor()
+    visitor, file_ids, file_pos_term_counts, g = prepare_visitor()
 
-    # Main driver comes from logmerge.
+    # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
 
     # Find templates from directed graph g.
-    templates = build_templates(g)
+    templates = [] # build_templates(g)
 
-    return file_ids, pos_term_counts, g, templates
+    return file_ids, file_pos_term_counts, g, templates
 
 
 # Need 32 hex chars for a uuid pattern.
@@ -97,9 +104,11 @@ re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 def prepare_visitor():
+    # Keyed by file name, value is file id.
     file_ids = {}
 
-    pos_term_counts = collections.Counter()
+    # Keyed by file name, value is collections.Counter.
+    file_pos_term_counts = {}
 
     g = nx.DiGraph()
 
@@ -110,6 +119,11 @@ def prepare_visitor():
         if file_id is None:
             file_id = str(len(file_ids))
             file_ids[file_name] = file_id
+
+        pos_term_counts = file_pos_term_counts.get(file_name)
+        if pos_term_counts is None:
+            pos_term_counts = collections.Counter()
+            file_pos_term_counts[file_name] = pos_term_counts
 
         pos_term_prev = None
 
@@ -153,7 +167,7 @@ def prepare_visitor():
         if g.number_of_nodes() < 1000:  # Emit some early sample lines.
             print pos_terms_or_vals
 
-    return v, file_ids, pos_term_counts, g
+    return v, file_ids, file_pos_term_counts, g
 
 
 def build_templates(g):
