@@ -12,6 +12,22 @@ import networkx as nx
 
 
 def main(argv):
+    file_ids, term_counts, g = process(argv)
+
+    print term_counts
+
+    print term_counts.most_common(10)
+
+    print "len(term_counts)", len(term_counts)
+
+    print "sum(term_counts.values())", sum(term_counts.values())
+
+    print "g.number_of_nodes()", g.number_of_nodes()
+
+    print "g.number_of_edges()", g.number_of_edges()
+
+
+def process(argv):
     has_out_argument = False
     for arg in argv:
         if arg.startswith("--out="):
@@ -31,40 +47,31 @@ def main(argv):
                   argument_parser=argument_parser,
                   visitor=visitor)
 
-    print term_counts
-
-    print term_counts.most_common(10)
-
-    print "len(term_counts)", len(term_counts)
-
-    print "sum(term_counts.values())", sum(term_counts.values())
-
-    print "g.number_of_nodes()", g.number_of_nodes()
-
-    print "g.number_of_edges()", g.number_of_edges()
+    return file_ids, term_counts, g
 
 
-# Need 32 hex chars for a uuid.
-pat_uuid = "[a-f0-9]" * 32
+# Need 32 hex chars for a uuid pattern.
+pattern_uuid = "[a-f0-9]" * 32
 
-# Example rev:
+# An example rev to initialize pattern_rev.
 ex_rev = \
     "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
     "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
 
-pat_rev = "[a-zA-Z90-9]" * len(ex_rev)
+pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 
 # A number-like pattern that's an optionally dotted or dashed or
 # slashed or colon'ed number, or a UUID or a rev.  Patterns like
 # YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
-pat_num_ish = \
+pattern_num_ish = \
     r"((\-?\d([\d\.\-\:/,]*\d))" + \
-    "|(" + pat_uuid + ")" + \
-    "|(" + pat_rev + "))"
+    "|(" + pattern_uuid + ")" + \
+    "|(" + pattern_rev + "))"
 
-pat_num_ish_groups = len(re.findall("\(", pat_num_ish))
+# Number of match groups in the pattern_num_ish.
+pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
 
-re_num_ish = re.compile(pat_num_ish)
+re_num_ish = re.compile(pattern_num_ish)
 
 re_words_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
@@ -123,7 +130,7 @@ def prepare_visitor():
 
             if i < len(parts):
                 a.append(parts[i])
-                i += pat_num_ish_groups
+                i += pattern_num_ish_groups
 
         if g.number_of_nodes() < 1000:  # Emit some early sample lines.
             print a
