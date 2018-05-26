@@ -34,14 +34,19 @@ def main(argv):
 pat_uuid = "[a-f0-9]" * 32
 
 # Example rev:
-ex_rev = "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
+ex_rev = \
+    "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
+    "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
 
 pat_rev = "[a-zA-Z90-9]" * len(ex_rev)
 
-# A number-like pattern that's optionally dotted or dashed or slashed
-# or coloned, or a UUID.  Patterns like YYYY-MM-DD, HH:MM:SS & IP
-# addresses would also be matched.
-pat_num_ish = r"((\-?\d([\d\.\-\:/,]*\d))|(" + pat_uuid + ")|(" + pat_rev + "))"
+# A number-like pattern that's an optionally dotted or dashed or
+# slashed or colon'ed number, or a UUID or a rev.  Patterns like
+# YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
+pat_num_ish = \
+    r"((\-?\d([\d\.\-\:/,]*\d))" + \
+    "|(" + pat_uuid + ")" + \
+    "|(" + pat_rev + "))"
 
 pat_num_ish_groups = len(re.findall("\(", pat_num_ish))
 
@@ -60,8 +65,6 @@ re_words_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 def prepare_visitor():
-    G = nx.Graph()
-
     term_counts = collections.Counter()
 
     def v(path, timestamp, entry, entry_size):
