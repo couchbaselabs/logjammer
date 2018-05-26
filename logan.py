@@ -40,6 +40,7 @@ pattern_num_ish = [
     ("rev", pattern_rev),
     ("ymd", r"\d\d\d\d-\d\d-\d\d"),
     ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d\d\dZ"),
     ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
     ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
     ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
