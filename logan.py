@@ -21,9 +21,7 @@ import logmerge
 
 
 def main(argv):
-    file_ids, file_pos_term_counts, file_patterns = process(argv)
-
-    print "len(file_ids)", len(file_ids)
+    file_pos_term_counts, file_patterns = process(argv)
 
     print "len(file_pos_term_counts)", len(file_pos_term_counts)
 
@@ -58,14 +56,14 @@ def process(argv):
                        (extends logmerge.py feature set)""")
 
     # Custom visitor.
-    visitor, file_ids, file_pos_term_counts, file_patterns = prepare_visitor()
+    visitor, file_pos_term_counts, file_patterns = prepare_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
 
-    return file_ids, file_pos_term_counts, file_patterns
+    return file_pos_term_counts, file_patterns
 
 
 # Need 32 hex chars for a uuid pattern.
@@ -97,9 +95,6 @@ re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 def prepare_visitor():
-    # Keyed by file name, value is file id.
-    file_ids = {}
-
     # Keyed by file name, value is collections.Counter.
     file_pos_term_counts = {}
 
@@ -108,11 +103,6 @@ def prepare_visitor():
 
     def v(path, timestamp, entry, entry_size):
         file_name = os.path.basename(path)
-
-        file_id = file_ids.get(file_name)
-        if file_id is None:
-            file_id = str(len(file_ids))
-            file_ids[file_name] = file_id
 
         pos_term_counts = file_pos_term_counts.get(file_name)
         if pos_term_counts is None:
@@ -144,12 +134,8 @@ def prepare_visitor():
                 if not term:
                     continue
 
-                # A "positioned term" encodes a term with its source
-                # file_id and term position.
-                pos_term = \
-                    file_id + ":" + \
-                    str(len(pattern)) + ">" + \
-                    term
+                # A "positioned term" encodes a position with a term.
+                pos_term = str(len(pattern)) + ">" + term
 
                 pos_term_counts.update([pos_term])
 
@@ -169,18 +155,13 @@ def prepare_visitor():
                 patterns[tuple(pattern)] = True
                 print file_name, pattern
 
-    return v, file_ids, file_pos_term_counts, file_patterns
+    return v, file_pos_term_counts, file_patterns
 
 
 def parse_pos_term(pos_term):
-    i = pos_term.find(':')
-    j = pos_term[i+1:].find('>')
+    i = pos_term.find('>')
 
-    file_id = pos_term[0:i]
-    term_position = pos_term[i+1:i+1+j]
-    term = pos_term[i+1+j+1:]
-
-    return file_id, int(term_position), term
+    return int(pos_term[0:i]), pos_term[i+1:]
 
 
 if __name__ == '__main__':
