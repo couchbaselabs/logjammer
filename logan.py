@@ -66,8 +66,8 @@ def process(argv):
     return file_pos_term_counts, file_patterns
 
 
-# Need 32 hex chars for a uuid pattern.
-pattern_uuid = "[a-f0-9]" * 32
+# Need 32 hex chars for a uid pattern.
+pattern_uid = "[a-f0-9]" * 32
 
 # An example rev to initialize pattern_rev.
 ex_rev = \
@@ -77,19 +77,21 @@ ex_rev = \
 pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 
 # A number-like pattern that's an optionally dotted or dashed or
-# slashed or colon'ed number, or a UUID or a rev.  Patterns like
+# slashed or colon'ed number, or a UID or a rev.  Patterns like
 # YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
-pattern_num_ish = \
-    "((0x[a-f0-9][a-f0-9]+)" + \
-    "|(0x[A-F0-9][A-F0-9]+)" + \
-    r"|([\d\-][\d\.\-\:/,]*)" + \
-    "|(" + pattern_uuid + ")" + \
-    "|(" + pattern_rev + "))"
+pattern_num_ish = [
+    ("hex", r"0x[a-f0-9][a-f0-9]+"),
+    ("hex", r"0x[A-F0-9][A-F0-9]+"),
+    ("num", r"[\d\-][\d\.\-\:/,]*"),
+    ("uid", pattern_uid),
+    ("rev", pattern_rev)]
 
-# Number of match groups in the pattern_num_ish.
-pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
+pattern_num_ish_joined = "(" + \
+                         "|".join(["(" + p[1] + ")"
+                                   for p in pattern_num_ish]) + \
+                         ")"
 
-re_num_ish = re.compile(pattern_num_ish)
+re_num_ish = re.compile(pattern_num_ish_joined)
 
 re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
@@ -145,7 +147,7 @@ def prepare_visitor():
             if i < len(sections):
                 num_ish = sections[i]
 
-                i += pattern_num_ish_groups
+                i += 1 + len(pattern_num_ish)
 
                 pattern.append("*")
 
