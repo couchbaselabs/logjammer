@@ -31,12 +31,10 @@ def main(argv):
 
     for file_name, pos_term_counts in file_pos_term_counts.iteritems():
         print file_name
+        print "  len(pos_term_counts)", len(pos_term_counts)
+        print "  sum(pos_term_counts.values())", sum(pos_term_counts.values())
         print "  most common", pos_term_counts.most_common(10)
         print "  least common", pos_term_counts.most_common()[:-10:-1]
-
-    print "len(pos_term_counts)", len(pos_term_counts)
-
-    print "sum(pos_term_counts.values())", sum(pos_term_counts.values())
 
     print "g.number_of_nodes()", g.number_of_nodes()
 
