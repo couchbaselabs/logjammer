@@ -153,8 +153,6 @@ def prepare_visitor():
 
             # Next, handle a num-ish section.
             if i < len(sections):
-                num_ish = sections[i]
-
                 num_ish_kind = None
                 j = 0
                 while j < len(pattern_num_ish):
