@@ -3,6 +3,7 @@
 
 import argparse
 import collections
+import os
 import re
 import sys
 
@@ -15,7 +16,7 @@ def main(argv):
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
-    visitor, term_counts = prepare_visitor()
+    visitor, file_ids, term_counts, g = prepare_visitor()
 
     logmerge.main(argv,
                   argument_parser=argument_parser,
@@ -28,6 +29,10 @@ def main(argv):
     print "len(term_counts)", len(term_counts)
 
     print "sum(term_counts.values())", sum(term_counts.values())
+
+    print "g.number_of_nodes()", g.number_of_nodes()
+
+    print "g.number_of_edges()", g.number_of_edges()
 
 
 # Need 32 hex chars for a uuid.
@@ -65,33 +70,53 @@ re_words_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 def prepare_visitor():
+    file_ids = {}
+
     term_counts = collections.Counter()
 
-    def v(path, timestamp, entry, entry_size):
-        textHead = entry[0].strip()
+    g = nx.DiGraph()
 
-        parts = re.split(re_num_ish, textHead)
+    def v(path, timestamp, entry, entry_size):
+        file = os.path.basename(path)
+
+        file_id = file_ids.get(file)
+        if file_id is None:
+            file_id = len(file_ids)
+            file_ids[path] = file_id
+
+        first_line = entry[0].strip()
+
+        parts = re.split(re_num_ish, first_line)
 
         a = []
+
+        prev_term = "__START__"
 
         i = 0
         while i < len(parts):
             words = parts[i]
             i += 1
 
-            for word in re.split(re_words_split, words):
-                if word:
-                    term_counts.update([word])
-                    a.append(word)
+            for term in re.split(re_words_split, words):
+                if term:
+                    # Prefix position onto term.
+                    term = str(file_id) + ":" + str(len(a)) + ">" + term
+
+                    term_counts.update([term])
+                    a.append(term)
+
+                    g.add_edge(prev_term, term)
+
+                    prev_term = term
 
             if i < len(parts):
-                a.append("{" + parts[i] + "}")
-
+                a.append(parts[i])
                 i += pat_num_ish_groups
 
-        print "==>", a
+        if True:
+            print a
 
-    return v, term_counts
+    return v, file_ids, term_counts, g
 
 
 if __name__ == '__main__':
