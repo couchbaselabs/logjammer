@@ -23,7 +23,7 @@ import networkx as nx
 
 
 def main(argv):
-    file_ids, pos_term_counts, g = process(argv)
+    file_ids, pos_term_counts, g, templates = process(argv)
 
     print pos_term_counts.most_common(10)
 
@@ -34,6 +34,8 @@ def main(argv):
     print "g.number_of_nodes()", g.number_of_nodes()
 
     print "g.number_of_edges()", g.number_of_edges()
+
+    print "len(templates)", len(templates)
 
 
 def process(argv):
@@ -63,7 +65,7 @@ def process(argv):
     # Find templates from directed graph g.
     templates = build_templates(g)
 
-    return file_ids, pos_term_counts, g
+    return file_ids, pos_term_counts, g, templates
 
 
 # Need 32 hex chars for a uuid pattern.
@@ -80,10 +82,11 @@ pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 # slashed or colon'ed number, or a UUID or a rev.  Patterns like
 # YYYY-MM-DD, HH:MM:SS and IP addresses would also be matched.
 pattern_num_ish = \
-    r"((\-?\d([\d\.\-\:/,]*\d))" + \
+    "((0x[a-f0-9][a-f0-9]+)" + \
+    "|(0x[A-F0-9][A-F0-9]+)" + \
+    r"|([\d\-][\d\.\-\:/,]*)" + \
     "|(" + pattern_uuid + ")" + \
-    "|(" + pattern_rev + ")" + \
-    "|(0x[a-fA-F0-9][a-fA-F0-9]+))"
+    "|(" + pattern_rev + "))"
 
 # Number of match groups in the pattern_num_ish.
 pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
@@ -159,14 +162,12 @@ def build_templates(g):
     for pos_term in g.nodes:
         # A pos_term with no predecessors is an initial template pos_term.
         if len(g.pred[pos_term]) <= 0:
-            expand_template(g, (), 0, pos_term, templates)
+            expand_template(g, pos_term, (), 0, templates)
 
-    print "templates..."
-    for template in templates.keys():
-        print "  ", template
+    return templates
 
 
-def expand_template(g, template_so_far, template_so_far_len, pos_term, templates):
+def expand_template(g, pos_term, template_so_far, template_so_far_len, templates):
     file_id, term_position, term = parse_pos_term(pos_term)
 
     while template_so_far_len < term_position:
@@ -176,7 +177,7 @@ def expand_template(g, template_so_far, template_so_far_len, pos_term, templates
     template_so_far = (pos_term, template_so_far)
     template_so_far_len += 1
 
-    if len(g.succ[pos_term]) < 1000:
+    if len(g.succ[pos_term]) < 100:
         pos_term_successors = g.successors(pos_term)
     else:
         pos_term_successors = {}
@@ -187,14 +188,19 @@ def expand_template(g, template_so_far, template_so_far_len, pos_term, templates
 
     i = 0
     for pos_term_succ in pos_term_successors:
-        expand_template(g, template_so_far, template_so_far_len,
-                        pos_term_succ, templates)
+        expand_template(g, pos_term_succ,
+                        template_so_far, template_so_far_len, templates)
         i += 1
 
     if not i:
         template = tuple(reverse_nested_pairs(template_so_far, []))
-        templates[tuple(reverse_nested_pairs(template_so_far, []))] = True
-        print len(templates), template
+
+        if templates.get(template):
+            print "   !!! SAVED", template
+        else:
+            print len(templates), template
+
+        templates[template] = True
 
 
 # Given nested tuple pairs like (a, (b, (c, (d, ())))),
