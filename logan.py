@@ -136,7 +136,7 @@ def prepare_visitor():
                 if not term:
                     continue
 
-                # A "positioned term" encodes a position with a term.
+                # A "positioned term" encodes a term position with a term.
                 pos_term = str(len(pattern)) + ">" + term
 
                 pos_term_counts.update([pos_term])
