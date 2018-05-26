@@ -8,6 +8,7 @@ import re
 import sys
 
 import logmerge
+
 import networkx as nx
 
 
@@ -43,12 +44,15 @@ def process(argv):
     if not has_out_argument:
         argv.insert(1, "--out=/dev/null")
 
+    # Custom argument parser.
     argument_parser = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
+    # Custom visitor.
     visitor, file_ids, pos_term_counts, g = prepare_visitor()
 
+    # Main driver comes from logmerge.
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
