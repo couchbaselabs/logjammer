@@ -12,6 +12,15 @@ import networkx as nx
 
 
 def main(argv):
+    has_out_argument = False
+    for arg in argv:
+        if arg.startswith("--out="):
+            has_out_argument = True
+            break
+
+    if not has_out_argument:
+        argv.insert(1, "--out=/dev/null")
+
     argument_parser = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
