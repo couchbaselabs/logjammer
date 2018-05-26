@@ -77,12 +77,14 @@ def prepare_visitor():
     g = nx.DiGraph()
 
     def v(path, timestamp, entry, entry_size):
-        file = os.path.basename(path)
+        file_name = os.path.basename(path)
 
-        file_id = file_ids.get(file)
+        file_id = file_ids.get(file_name)
         if file_id is None:
             file_id = len(file_ids)
-            file_ids[path] = file_id
+            file_ids[file_name] = file_id
+
+        file_id_str = str(file_id)
 
         first_line = entry[0].strip()
 
@@ -100,7 +102,7 @@ def prepare_visitor():
             for term in re.split(re_words_split, words):
                 if term:
                     # Prefix file_id and term position onto term.
-                    term = str(file_id) + ":" + str(len(a)) + ">" + term
+                    term = file_id_str + ":" + str(len(a)) + ">" + term
 
                     term_counts.update([term])
                     a.append(term)
