@@ -90,7 +90,7 @@ def prepare_visitor():
 
         a = []
 
-        prev_term = "__START__"
+        prev_term = None
 
         i = 0
         while i < len(parts):
@@ -99,13 +99,14 @@ def prepare_visitor():
 
             for term in re.split(re_words_split, words):
                 if term:
-                    # Prefix position onto term.
+                    # Prefix file_id and term position onto term.
                     term = str(file_id) + ":" + str(len(a)) + ">" + term
 
                     term_counts.update([term])
                     a.append(term)
 
-                    g.add_edge(prev_term, term)
+                    if prev_term:
+                        g.add_edge(prev_term, term)
 
                     prev_term = term
 
@@ -113,7 +114,7 @@ def prepare_visitor():
                 a.append(parts[i])
                 i += pat_num_ish_groups
 
-        if True:
+        if g.number_of_nodes() < 1000:  # Emit some early sample lines.
             print a
 
     return v, file_ids, term_counts, g
