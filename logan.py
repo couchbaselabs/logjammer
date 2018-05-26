@@ -25,8 +25,6 @@ import networkx as nx
 def main(argv):
     file_ids, pos_term_counts, g = process(argv)
 
-    print pos_term_counts
-
     print pos_term_counts.most_common(10)
 
     print "len(pos_term_counts)", len(pos_term_counts)
@@ -36,11 +34,6 @@ def main(argv):
     print "g.number_of_nodes()", g.number_of_nodes()
 
     print "g.number_of_edges()", g.number_of_edges()
-
-    print "pos_terms with no predecessors"
-    for pos_term in g.nodes:
-        if len(g.pred[pos_term]) <= 0:
-            print "  ", pos_term
 
 
 def process(argv):
@@ -67,6 +60,9 @@ def process(argv):
                   argument_parser=argument_parser,
                   visitor=visitor)
 
+    # Find templates from directed graph g.
+    templates = build_templates(g)
+
     return file_ids, pos_term_counts, g
 
 
@@ -86,7 +82,8 @@ pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 pattern_num_ish = \
     r"((\-?\d([\d\.\-\:/,]*\d))" + \
     "|(" + pattern_uuid + ")" + \
-    "|(" + pattern_rev + "))"
+    "|(" + pattern_rev + ")" + \
+    "|(0x[a-fA-F0-9][a-fA-F0-9]+))"
 
 # Number of match groups in the pattern_num_ish.
 pattern_num_ish_groups = len(re.findall("\(", pattern_num_ish))
@@ -154,6 +151,70 @@ def prepare_visitor():
             print pos_terms_or_vals
 
     return v, file_ids, pos_term_counts, g
+
+
+def build_templates(g):
+    templates = {}
+
+    for pos_term in g.nodes:
+        # A pos_term with no predecessors is an initial template pos_term.
+        if len(g.pred[pos_term]) <= 0:
+            expand_template(g, (), 0, pos_term, templates)
+
+    print "templates..."
+    for template in templates.keys():
+        print "  ", template
+
+
+def expand_template(g, template_so_far, template_so_far_len, pos_term, templates):
+    file_id, term_position, term = parse_pos_term(pos_term)
+
+    while template_so_far_len < term_position:
+        template_so_far = ("*", template_so_far)
+        template_so_far_len += 1
+
+    template_so_far = (pos_term, template_so_far)
+    template_so_far_len += 1
+
+    if len(g.succ[pos_term]) < 1000:
+        pos_term_successors = g.successors(pos_term)
+    else:
+        pos_term_successors = {}
+        for j in g.successors(pos_term):
+            for k in g.successors(j):
+                pos_term_successors[k] = True
+        pos_term_successors = pos_term_successors.keys()
+
+    i = 0
+    for pos_term_succ in pos_term_successors:
+        expand_template(g, template_so_far, template_so_far_len,
+                        pos_term_succ, templates)
+        i += 1
+
+    if not i:
+        template = tuple(reverse_nested_pairs(template_so_far, []))
+        templates[tuple(reverse_nested_pairs(template_so_far, []))] = True
+        print len(templates), template
+
+
+# Given nested tuple pairs like (a, (b, (c, (d, ())))),
+# append to acc in reverse order, producing [d, c, b, a].
+def reverse_nested_pairs(chain, acc):
+    if len(chain) > 1:
+        reverse_nested_pairs(chain[1], acc)
+        acc.append(chain[0])
+    return acc
+
+
+def parse_pos_term(pos_term):
+    i = pos_term.find(':')
+    j = pos_term[i+1:].find('>')
+
+    file_id = pos_term[0:i]
+    term_position = pos_term[i+1:i+1+j]
+    term = pos_term[i+1+j+1:]
+
+    return file_id, int(term_position), term
 
 
 if __name__ == '__main__':
