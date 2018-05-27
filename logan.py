@@ -76,7 +76,11 @@ def main(argv):
     print "len(file_patterns)", len(file_patterns)
 
     num_pattern_infos = 0
-    sum_pattern_infos_total = 0
+    num_pattern_infos_total = 0
+    num_pattern_infos_base = 0
+    num_pattern_infos_base_none = 0
+
+    pattern_tuple_bases = {}
 
     for file_name, patterns in file_patterns.iteritems():
         num_pattern_infos += len(patterns)
@@ -90,16 +94,32 @@ def main(argv):
         for i, pattern_tuple in enumerate(pattern_tuples):
             pattern_info = patterns[pattern_tuple]
 
-            sum_pattern_infos_total += pattern_info.total
+            num_pattern_infos_total += pattern_info.total
+
+            if pattern_info.pattern_tuple_base:
+                num_pattern_infos_base += 1
+                pattern_tuple_bases[pattern_info.pattern_tuple_base] = True
+            else:
+                num_pattern_infos_base_none += 1
 
             print "      ", file_name, i, pattern_tuple, pattern_info.total
 
-            for recent in list(pattern_info.recents):
-                print "        ", recent
+            if False:
+                for recent in list(pattern_info.recents):
+                    print "        ", recent
 
     print "num_pattern_infos", num_pattern_infos
+    print "num_pattern_infos_total", num_pattern_infos_total
+    print "num_pattern_infos_base", num_pattern_infos_base
+    print "num_pattern_infos_base_none", num_pattern_infos_base_none
+    print "len(pattern_tuple_bases)", len(pattern_tuple_bases)
 
-    print "sum_pattern_infos_total", sum_pattern_infos_total
+    pattern_tuple_bases = pattern_tuple_bases.keys()
+    pattern_tuple_bases.sort()
+
+    print "pattern_tuple_bases..."
+    for pattern_tuple_base in pattern_tuple_bases:
+        print "  ", pattern_tuple_base
 
 
 def process(argv):
@@ -125,6 +145,25 @@ def process(argv):
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
+
+    # Find similar patterns that should share the same base.
+    for file_name, patterns in file_patterns.iteritems():
+        pattern_tuples = patterns.keys()
+        pattern_tuples.sort()
+
+        for i, pattern_tuple in enumerate(pattern_tuples):
+            pattern_info = patterns[pattern_tuple]
+
+            j = i - 1
+            while j >= 0 and j > i - 10:
+                prev_pattern_tuple = pattern_tuples[j]
+                prev_pattern_info = patterns[prev_pattern_tuple]
+
+                if mark_similar_pattern_infos(pattern_info,
+                                              prev_pattern_info):
+                    break
+
+                j -= 1
 
     return file_pos_term_counts, file_patterns
 
@@ -218,11 +257,44 @@ default_pattern_info_max_recent = 100
 
 class PatternInfo(object):
     def __init__(self, pattern_tuple, first_timestamp, first_entry):
+        self.pattern_tuple_base = None
         self.pattern_tuple = pattern_tuple
         self.first_timestamp = first_timestamp
         self.first_entry = first_entry
         self.total = 0
         self.recents = collections.deque((), default_pattern_info_max_recent)
+
+
+def mark_similar_pattern_infos(a, b):
+    a_tuple = a.pattern_tuple
+    b_tuple = b.pattern_tuple
+
+    if len(a_tuple) != len(b_tuple):
+        return False
+
+    if b.pattern_tuple_base:
+        b_tuple = b.pattern_tuple_base
+
+    for i in range(len(a_tuple)):
+        if a_tuple[i] == b_tuple[i]:
+            continue
+
+        # Return if the rest of the tuples are not the same.
+        if a_tuple[i+1:] != b_tuple[i+1:]:
+            return False
+
+        # Pattern infos a & b only differ by a single entry, so
+        # initialize their pattern_tuple_base with a '$' at the
+        # differing entry.
+        if not b.pattern_tuple_base:
+            b_list = list(b_tuple)
+            b_list[i] = "$"
+
+            b.pattern_tuple_base = tuple(b_list)
+
+        a.pattern_tuple_base = b.pattern_tuple_base
+
+        return True
 
 
 if __name__ == '__main__':
