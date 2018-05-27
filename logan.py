@@ -47,9 +47,9 @@ pattern_num_ish = [
     ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
     ("hms", r"T?\d\d:\d\d:\d\d"),
     ("ip4", r"\d+\.\d+\.\d+\.\d+"),
-    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),
-    ("neg", r"-\d[\d\.]*"),
-    ("pos", r"\d[\d\.]*")]
+    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # A numbered identifier, like "vb_8".
+    ("neg", r"-\d[\d\.]*"),               # A negative dotted number.
+    ("pos", r"\d[\d\.]*")]                # A positive dotted number.
 
 pattern_num_ish_joined = "(" + \
                          "|".join(["(" + p[1] + ")"
@@ -75,20 +75,31 @@ def main(argv):
 
     print "len(file_patterns)", len(file_patterns)
 
-    for file_name, patterns_dict in file_patterns.iteritems():
+    num_pattern_infos = 0
+    sum_pattern_infos_total = 0
+
+    for file_name, patterns in file_patterns.iteritems():
+        num_pattern_infos += len(patterns)
+
         print "  ", file_name
-        print "    len(patterns_dict)", len(patterns_dict)
+        print "    len(patterns)", len(patterns)
 
-        patterns = patterns_dict.keys()
-        patterns.sort()
+        pattern_tuples = patterns.keys()
+        pattern_tuples.sort()
 
-        for i, pattern_tuple in enumerate(patterns):
-            pattern_info = patterns_dict[pattern_tuple]
+        for i, pattern_tuple in enumerate(pattern_tuples):
+            pattern_info = patterns[pattern_tuple]
+
+            sum_pattern_infos_total += pattern_info.total
 
             print "      ", file_name, i, pattern_tuple, pattern_info.total
 
             for recent in list(pattern_info.recents):
                 print "        ", recent
+
+    print "num_pattern_infos", num_pattern_infos
+
+    print "sum_pattern_infos_total", sum_pattern_infos_total
 
 
 def process(argv):
@@ -126,6 +137,9 @@ def prepare_visitor():
     file_patterns = {}
 
     def v(path, timestamp, entry, entry_size):
+        if (not timestamp) or (not entry):
+            return
+
         file_name = os.path.basename(path)
 
         pos_term_counts = file_pos_term_counts.get(file_name)
