@@ -146,24 +146,7 @@ def process(argv):
                   argument_parser=argument_parser,
                   visitor=visitor)
 
-    # Find similar patterns that should share the same base.
-    for file_name, patterns in file_patterns.iteritems():
-        pattern_tuples = patterns.keys()
-        pattern_tuples.sort()
-
-        for i, pattern_tuple in enumerate(pattern_tuples):
-            pattern_info = patterns[pattern_tuple]
-
-            j = i - 1
-            while j >= 0 and j > i - 10:
-                prev_pattern_tuple = pattern_tuples[j]
-                prev_pattern_info = patterns[prev_pattern_tuple]
-
-                if mark_similar_pattern_infos(pattern_info,
-                                              prev_pattern_info):
-                    break
-
-                j -= 1
+    mark_similar_pattern_infos(file_patterns)
 
     return file_pos_term_counts, file_patterns
 
@@ -197,6 +180,7 @@ def prepare_visitor():
         # Split the first line into num'ish and non-num'ish sections.
         sections = re.split(re_num_ish, entry_first_line)
 
+        # Build up the current pattern from the sections.
         pattern = []
 
         i = 0
@@ -218,7 +202,8 @@ def prepare_visitor():
 
                 pattern.append(pos_term)
 
-            # Next, handle a num-ish section.
+            # Next, handle a num-ish section, where re.split()
+            # produces as many items as there were capture groups.
             if i < len(sections):
                 num_ish_kind = None
                 j = 0
@@ -231,6 +216,7 @@ def prepare_visitor():
 
                 i += 1 + len(pattern_num_ish)
 
+        # Register into patterns if it's a brand new pattern.
         if pattern:
             pattern_tuple = tuple(pattern)
 
@@ -239,60 +225,87 @@ def prepare_visitor():
                 pattern_info = PatternInfo(pattern_tuple, timestamp, entry)
                 patterns[pattern_tuple] = pattern_info
 
-                print path, pattern
-
+            # Increment the total count of instances of this pattern.
             pattern_info.total += 1
+
+            # Remember recent instances of this pattern.
             pattern_info.recents.append((timestamp, entry_first_line))
 
     return v, file_pos_term_counts, file_patterns
 
 
+# Parse a "positioned term".
 def parse_pos_term(pos_term):
     i = pos_term.find('>')
 
     return int(pos_term[0:i]), pos_term[i+1:]
 
 
-default_pattern_info_max_recent = 100
-
 class PatternInfo(object):
+    # Max number of recently seen entries to remember.
+    pattern_info_recent_max = 100
+
     def __init__(self, pattern_tuple, first_timestamp, first_entry):
         self.pattern_tuple_base = None
         self.pattern_tuple = pattern_tuple
         self.first_timestamp = first_timestamp
         self.first_entry = first_entry
         self.total = 0
-        self.recents = collections.deque((), default_pattern_info_max_recent)
+        self.recents = collections.deque((), self.pattern_info_recent_max)
 
 
-def mark_similar_pattern_infos(a, b):
-    a_tuple = a.pattern_tuple
-    b_tuple = b.pattern_tuple
+# Process the file_patterns marking similar pattern info's.
+def mark_similar_pattern_infos(file_patterns, scan_distance = 10):
+    for file_name, patterns in file_patterns.iteritems():
+        pattern_tuples = patterns.keys()
+        pattern_tuples.sort()  # Sort so similar patterns are nearby.
 
-    if len(a_tuple) != len(b_tuple):
+        for i, pattern_tuple in enumerate(pattern_tuples):
+            curr_pattern_info = patterns[pattern_tuple]
+
+            scan_idx = i - 1
+            scan_until = i - scan_distance
+
+            while scan_idx >= 0 and scan_idx > scan_until:
+                prev_pattern_tuple = pattern_tuples[scan_idx]
+                prev_pattern_info = patterns[prev_pattern_tuple]
+
+                if mark_similar_pattern_info_pair(curr_pattern_info,
+                                                  prev_pattern_info):
+                    break
+
+                scan_idx -= 1
+
+
+# Examine the new and old pattern info's, and if they're similar (only
+# differing by a single part), mark them and return True.
+def mark_similar_pattern_info_pair(new, old):
+    new_tuple = new.pattern_tuple
+    old_tuple = old.pattern_tuple
+
+    if len(new_tuple) != len(old_tuple):
         return False
 
-    if b.pattern_tuple_base:
-        b_tuple = b.pattern_tuple_base
+    if old.pattern_tuple_base:
+        old_tuple = old.pattern_tuple_base
 
-    for i in range(len(a_tuple)):
-        if a_tuple[i] == b_tuple[i]:
+    for i in range(len(new_tuple)):
+        if new_tuple[i] == old_tuple[i]:
             continue
 
-        # Return if the rest of the tuples are not the same.
-        if a_tuple[i+1:] != b_tuple[i+1:]:
+        # If remaing tuple parts are different, they're not similar.
+        if new_tuple[i+1:] != old_tuple[i+1:]:
             return False
 
-        # Pattern infos a & b only differ by a single entry, so
-        # initialize their pattern_tuple_base with a '$' at the
-        # differing entry.
-        if not b.pattern_tuple_base:
-            b_list = list(b_tuple)
-            b_list[i] = "$"
+        # At this point, new & old differ by a single part, so set
+        # their pattern_tuple_base's with a '$' at the differing part.
+        # Optimize by reusing old's pattern_tuple_base if available.
+        if not old.pattern_tuple_base:
+            old_list = list(old_tuple)
+            old_list[i] = "$"
+            old.pattern_tuple_base = tuple(old_list)
 
-            b.pattern_tuple_base = tuple(b_list)
-
-        a.pattern_tuple_base = b.pattern_tuple_base
+        new.pattern_tuple_base = old.pattern_tuple_base
 
         return True
 
