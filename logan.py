@@ -72,6 +72,9 @@ def main(argv):
         print "    sum(pos_term_counts.values)", sum(pos_term_counts.values())
         print "    most common", pos_term_counts.most_common(10)
         print "    least common", pos_term_counts.most_common()[:-10:-1]
+        print "    ------------------"
+
+    print "\n============================================"
 
     print "len(file_patterns)", len(file_patterns)
 
@@ -98,7 +101,9 @@ def main(argv):
 
             if pattern_info.pattern_tuple_base:
                 num_pattern_infos_base += 1
-                pattern_tuple_bases[pattern_info.pattern_tuple_base] = True
+
+                k = (file_name, pattern_info.pattern_tuple_base)
+                pattern_tuple_bases[k] = pattern_tuple_bases.get(k, 0) + 1
             else:
                 num_pattern_infos_base_none += 1
 
@@ -108,18 +113,22 @@ def main(argv):
                 for recent in list(pattern_info.recents):
                     print "        ", recent
 
+    print "\n============================================"
+
     print "num_pattern_infos", num_pattern_infos
     print "num_pattern_infos_total", num_pattern_infos_total
     print "num_pattern_infos_base", num_pattern_infos_base
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
     print "len(pattern_tuple_bases)", len(pattern_tuple_bases)
 
-    pattern_tuple_bases = pattern_tuple_bases.keys()
-    pattern_tuple_bases.sort()
+    print "\n============================================"
+
+    pattern_tuple_base_keys = pattern_tuple_bases.keys()
+    pattern_tuple_base_keys.sort()
 
     print "pattern_tuple_bases..."
-    for pattern_tuple_base in pattern_tuple_bases:
-        print "  ", pattern_tuple_base
+    for k in pattern_tuple_base_keys:
+        print "  ", pattern_tuple_bases[k], "-", k
 
 
 def process(argv):
@@ -255,7 +264,7 @@ class PatternInfo(object):
 
 
 # Process the file_patterns marking similar pattern info's.
-def mark_similar_pattern_infos(file_patterns, scan_distance = 10):
+def mark_similar_pattern_infos(file_patterns, scan_distance=10):
     for file_name, patterns in file_patterns.iteritems():
         pattern_tuples = patterns.keys()
         pattern_tuples.sort()  # Sort so similar patterns are nearby.
