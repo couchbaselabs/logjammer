@@ -314,7 +314,7 @@ def mark_similar_pattern_info_pair(new, old):
         return True
 
 
-# Plot the log files, based on the given pattern info's.
+# Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, num_pattern_infos, num_entries,
                  file_patterns):
     from PIL import Image, ImageDraw
