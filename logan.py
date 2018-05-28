@@ -181,82 +181,85 @@ def scan_patterns_visitor():
             pos_term_counts = collections.Counter()
             file_pos_term_counts[file_name] = pos_term_counts
 
+        pattern = entry_to_pattern(entry,
+                                   pos_term_counts=pos_term_counts)
+        if not pattern:
+            return
+
+        # Register into patterns dict if it's a brand new pattern.
         patterns = file_patterns.get(file_name)
         if patterns is None:
             patterns = {}
             file_patterns[file_name] = patterns
 
-        # Only look at the first line of the entry.
-        entry_first_line = entry[0].strip()
+        pattern_tuple = tuple(pattern)
 
-        # Split the first line into num'ish and non-num'ish sections.
-        sections = re.split(re_num_ish, entry_first_line)
+        pattern_info = patterns.get(pattern_tuple)
+        if not pattern_info:
+            pattern_info = PatternInfo(pattern_tuple, timestamp, entry)
+            patterns[pattern_tuple] = pattern_info
 
-        # Build up the current pattern from the sections.
-        pattern = []
-
-        i = 0
-        while i < len(sections):
-            # First, handle a non-num'ish section.
-            section = sections[i]
-
-            i += 1
-
-            # Split the non-num'ish section into terms.
-            for term in re.split(re_section_split, section):
-                if not term:
-                    continue
-
-                # A "positioned term" encodes a term position with a term.
-                pos_term = str(len(pattern)) + ">" + term
-
-                pos_term_counts.update([pos_term])
-
-                pattern.append(pos_term)
-
-            # Next, handle a num-ish section, where re.split()
-            # produces as many items as there were capture groups.
-            if i < len(sections):
-                num_ish_kind = None
-                j = 0
-                while j < len(pattern_num_ish):
-                    if sections[i + 1 + j]:
-                        num_ish_kind = j
-                    j += 1
-
-                pattern.append("#" + pattern_num_ish[num_ish_kind][0])
-
-                i += 1 + len(pattern_num_ish)
-
-        # Register into patterns dict if it's a brand new pattern.
-        if pattern:
-            pattern_tuple = tuple(pattern)
-
-            pattern_info = patterns.get(pattern_tuple)
-            if not pattern_info:
-                pattern_info = PatternInfo(pattern_tuple, timestamp, entry)
-                patterns[pattern_tuple] = pattern_info
-
-            # Increment the total count of instances of this pattern.
-            pattern_info.total += 1
-
-            # Remember recent instances of this pattern.
-            pattern_info.recents.append((timestamp, entry_first_line))
+        # Increment the total count of instances of this pattern.
+        pattern_info.total += 1
 
     return v, file_pos_term_counts, file_patterns
 
 
-class PatternInfo(object):
-    # Max number of recently seen entries to remember.
-    pattern_info_recent_max = 100
+def entry_to_pattern(entry, pos_term_counts=None):
+    # Only look at the first line of the entry.
+    entry_first_line = entry[0].strip()
 
+    # Split the first line into num'ish and non-num'ish sections.
+    sections = re.split(re_num_ish, entry_first_line)
+
+    # Build up the current pattern from the sections.
+    pattern = []
+
+    i = 0
+    while i < len(sections):
+        # First, handle a non-num'ish section.
+        section = sections[i]
+
+        i += 1
+
+        # Split the non-num'ish section into terms.
+        for term in re.split(re_section_split, section):
+            if not term:
+                continue
+
+            # A "positioned term" encodes a term position with a term.
+            pos_term = str(len(pattern)) + ">" + term
+
+            if pos_term_counts:
+                pos_term_counts.update([pos_term])
+
+            pattern.append(pos_term)
+
+        # Next, handle a num-ish section, where re.split()
+        # produces as many items as there were capture groups.
+        if i < len(sections):
+            num_ish_kind = None
+            j = 0
+            while j < len(pattern_num_ish):
+                if sections[i + 1 + j]:
+                    num_ish_kind = j  # The capture group that fired.
+                    break
+                j += 1
+
+            pattern.append("#" + pattern_num_ish[num_ish_kind][0])
+
+            i += 1 + len(pattern_num_ish)
+
+    return pattern
+
+
+class PatternInfo(object):
     def __init__(self, pattern_tuple, first_timestamp, first_entry):
         self.pattern_tuple_base = None
         self.pattern_tuple = pattern_tuple
         self.first_timestamp = first_timestamp
         self.first_entry = first_entry
         self.total = 0
-        self.recents = collections.deque((), self.pattern_info_recent_max)
 
 
 # Find and mark similar pattern info's.
@@ -318,23 +321,49 @@ def mark_similar_pattern_info_pair(new, old):
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, argument_parser,
                  num_pattern_infos, num_entries, file_patterns):
+    return
+
     from PIL import Image, ImageDraw
-
-    w = num_pattern_infos
-    h = num_entries
-    if h > 2000:
-        h = 2000
-
-    im = Image.new("1", (w, h))
 
     white = 1
 
-    draw = ImageDraw.Draw(im)
-    draw.line((0, 0) + im.size, fill=white)
-    draw.line((0, im.size[1], im.size[0], 0), fill=white)
-    del draw
+    width = num_pattern_infos
+    height = 2000
 
-    im.save("out.png")
+    im = None
+    draw = None
+    cur_y = 0
+    out_num = -1
+
+    last_timestamp = None
+
+    def finish_image():
+        im.save("out-" + "{0:0>3}".format(out_num) + ".png")
+        im.close()
+
+    def start_image():
+        im = Image.new("1", (width, height))
+        draw = ImageDraw.Draw(im)
+        cur_y = 0
+        out_num = out_num + 1
+
+    start_image()
+
+    def plot_visitor(path, timestamp, entry, entry_size):
+        file_name = os.path.basename(path)
+
+        patterns = file_patterns.get(file_name)
+        if not patterns:
+            return
+
+        if cur_y >= height:
+            start_image()
+
+    logmerge.main(argv,
+                  argument_parser=argument_parser,
+                  visitor=plot_visitor)
+
+    finish_image()
 
 
 if __name__ == '__main__':
