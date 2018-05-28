@@ -10,59 +10,18 @@ import sys
 import logmerge
 
 
-# IDEAS:
-# terms
-# commonly seen sequences
-# what about uuid's
-# numbers are special (except when they're in a uuid?)
-# longest common substring
-# backtrack as it's actually not a common substring after all?
-# e.g., date changes hours
-
-
-# Need 32 hex chars for a uid pattern.
-pattern_uid = "[a-f0-9]" * 32
-
-# An example rev to initialize pattern_rev.
-ex_rev = \
-    "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
-    "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
-
-pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
-
-# Some number-like patterns such as optionally dotted or dashed or
-# slashed or colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and
-# IP addresses would also be matched.
-pattern_num_ish = [
-    ("hex", r"0x[a-f0-9][a-f0-9]+"),
-    ("hex", r"0x[A-F0-9][A-F0-9]+"),
-    ("uid", pattern_uid),
-    ("rev", pattern_rev),
-    ("ymd", r"\d\d\d\d-\d\d-\d\d"),
-    ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d\d\d\dZ"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d"),
-    ("ip4", r"\d+\.\d+\.\d+\.\d+"),
-    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # A numbered identifier, like "vb_8".
-    ("neg", r"-\d[\d\.]*"),               # A negative dotted number.
-    ("pos", r"\d[\d\.]*")]                # A positive dotted number.
-
-pattern_num_ish_joined = "(" + \
-                         "|".join(["(" + p[1] + ")"
-                                   for p in pattern_num_ish]) + \
-                         ")"
-
-re_num_ish = re.compile(pattern_num_ish_joined)
-
-re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
-
-
 def main(argv):
-    file_pos_term_counts, file_patterns = process(argv)
+    set_argv_default(argv, "out", "/dev/null")
+
+    # Custom argument parser.
+    argument_parser = argparse.ArgumentParser(
+        description="""%(prog)s provides log analysis
+                       (extends logmerge.py feature set)""")
+
+    file_pos_term_counts, file_patterns = \
+        scan_patterns(argv, argument_parser)
+
+    print "\n============================================"
 
     print "len(file_pos_term_counts)", len(file_pos_term_counts)
 
@@ -130,37 +89,81 @@ def main(argv):
     for k in pattern_tuple_base_keys:
         print "  ", pattern_tuple_bases[k], "-", k
 
+    print "\n============================================"
 
-def process(argv):
-    # Default to /dev/null for the --out argument.
-    has_out_argument = False
+    plot(argv, pattern_tuple_bases, pattern_tuple_base_keys)
+
+
+# Modify argv with a default for the --name=val argument.
+def set_argv_default(argv, name, val):
+    prefix = "--" + name + "="
+
     for arg in argv:
-        if arg.startswith("--out="):
-            has_out_argument = True
-            break
+        if arg.startswith(prefix):
+            return
 
-    if not has_out_argument:
-        argv.insert(1, "--out=/dev/null")
+    argv.insert(1, prefix + val)
 
-    # Custom argument parser.
-    argument_parser = argparse.ArgumentParser(
-        description="""%(prog)s provides log analysis
-                       (extends logmerge.py feature set)""")
 
+# Need 32 hex chars for a uid pattern.
+pattern_uid = "[a-f0-9]" * 32
+
+# An example rev to initialize pattern_rev.
+ex_rev = \
+    "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
+    "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
+
+pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
+
+# Some number-like patterns such as optionally dotted or dashed or
+# slashed or colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and
+# IP addresses would also be matched.
+pattern_num_ish = [
+    ("hex", r"0x[a-f0-9][a-f0-9]+"),
+    ("hex", r"0x[A-F0-9][A-F0-9]+"),
+    ("uid", pattern_uid),
+    ("rev", pattern_rev),
+    ("ymd", r"\d\d\d\d-\d\d-\d\d"),
+    ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d\d\d\dZ"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
+    ("hms", r"T?\d\d:\d\d:\d\d"),
+    ("ip4", r"\d+\.\d+\.\d+\.\d+"),
+    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # A numbered identifier, like "vb_8".
+    ("neg", r"-\d[\d\.]*"),               # A negative dotted number.
+    ("pos", r"\d[\d\.]*")]                # A positive dotted number.
+
+pattern_num_ish_joined = "(" + \
+                         "|".join(["(" + p[1] + ")"
+                                   for p in pattern_num_ish]) + \
+                         ")"
+
+re_num_ish = re.compile(pattern_num_ish_joined)
+
+re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
+
+
+# Scan the log files to build up pattern info's.
+def scan_patterns(argv, argument_parser):
     # Custom visitor.
-    visitor, file_pos_term_counts, file_patterns = prepare_visitor()
+    visitor, file_pos_term_counts, file_patterns = \
+        scan_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
 
+    # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
 
     return file_pos_term_counts, file_patterns
 
 
-def prepare_visitor():
+def scan_patterns_visitor():
     # Keyed by file name, value is collections.Counter.
     file_pos_term_counts = {}
 
@@ -225,7 +228,7 @@ def prepare_visitor():
 
                 i += 1 + len(pattern_num_ish)
 
-        # Register into patterns if it's a brand new pattern.
+        # Register into patterns dict if it's a brand new pattern.
         if pattern:
             pattern_tuple = tuple(pattern)
 
@@ -263,7 +266,7 @@ class PatternInfo(object):
         self.recents = collections.deque((), self.pattern_info_recent_max)
 
 
-# Process the file_patterns marking similar pattern info's.
+# Find and mark similar pattern info's.
 def mark_similar_pattern_infos(file_patterns, scan_distance=10):
     for file_name, patterns in file_patterns.iteritems():
         pattern_tuples = patterns.keys()
@@ -286,7 +289,7 @@ def mark_similar_pattern_infos(file_patterns, scan_distance=10):
                 scan_idx -= 1
 
 
-# Examine the new and old pattern info's, and if they're similar (only
+# Examine a new and old pattern info, and if they're similar (only
 # differing by a single part), mark them and return True.
 def mark_similar_pattern_info_pair(new, old):
     new_tuple = new.pattern_tuple
@@ -302,13 +305,13 @@ def mark_similar_pattern_info_pair(new, old):
         if new_tuple[i] == old_tuple[i]:
             continue
 
-        # If remaing tuple parts are different, they're not similar.
+        # See if remaining tuple parts are different.
         if new_tuple[i+1:] != old_tuple[i+1:]:
             return False
 
-        # At this point, new & old differ by a single part, so set
-        # their pattern_tuple_base's with a '$' at the differing part.
-        # Optimize by reusing old's pattern_tuple_base if available.
+        # Here, new & old differ by only a single part, so set their
+        # pattern_tuple_base's with a '$' at that differing part.
+        # Optimize by reusing old's pattern_tuple_base.
         if not old.pattern_tuple_base:
             old_list = list(old_tuple)
             old_list[i] = "$"
@@ -317,6 +320,27 @@ def mark_similar_pattern_info_pair(new, old):
         new.pattern_tuple_base = old.pattern_tuple_base
 
         return True
+
+
+# Scan the log files and plot them with the given patterns.
+def plot(argv, pattern_tuple_bases, pattern_tuple_base_keys):
+    return  # TODO.
+
+    from PIL import Image, ImageDraw
+
+    w = 200
+    h = 2000
+
+    im = Image.new("1", (w, h))
+
+    white = 1
+
+    draw = ImageDraw.Draw(im)
+    draw.line((0, 0) + im.size, fill=white)
+    draw.line((0, im.size[1], im.size[0], 0), fill=white)
+    del draw
+
+    im.save("out.png")
 
 
 if __name__ == '__main__':
