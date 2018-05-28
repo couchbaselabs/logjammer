@@ -7,6 +7,8 @@ import os
 import re
 import sys
 
+from PIL import Image, ImageDraw
+
 import logmerge
 
 
@@ -94,7 +96,8 @@ def main(argv):
     print "\n============================================"
 
     scan_to_plot(argv, argument_parser,
-                 num_pattern_infos, num_entries, file_patterns)
+                 num_pattern_infos_base + num_pattern_infos_base_none,
+                 file_patterns)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -320,34 +323,8 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, argument_parser,
-                 num_pattern_infos, num_entries, file_patterns):
+                 num_pattern_infos, file_patterns):
     return
-
-    from PIL import Image, ImageDraw
-
-    white = 1
-
-    width = num_pattern_infos
-    height = 2000
-
-    im = None
-    draw = None
-    cur_y = 0
-    out_num = -1
-
-    last_timestamp = None
-
-    def finish_image():
-        im.save("out-" + "{0:0>3}".format(out_num) + ".png")
-        im.close()
-
-    def start_image():
-        im = Image.new("1", (width, height))
-        draw = ImageDraw.Draw(im)
-        cur_y = 0
-        out_num = out_num + 1
-
-    start_image()
 
     def plot_visitor(path, timestamp, entry, entry_size):
         file_name = os.path.basename(path)
@@ -356,14 +333,43 @@ def scan_to_plot(argv, argument_parser,
         if not patterns:
             return
 
-        if cur_y >= height:
-            start_image()
-
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=plot_visitor)
 
-    finish_image()
+
+class PlotVisitor(object):
+    white = 1
+
+    def __init__(self, num_pattern_infos, num_entries, file_patterns):
+        self.num_pattern_infos = num_pattern_infos
+        self.num_entries = num_entries
+        self.file_patterns = file_patterns
+
+        self.width = num_pattern_infos
+        self.height = 2000
+
+        self.im_curr = None
+        self.im_next = 0
+
+        self.draw = None
+        self.cur_y = 0
+
+        self.last_timestamp = None
+
+    def finish_image(self):
+        self.im_curr.save("out-" + "{0:0>3}".format(self.im_next) + ".png")
+        self.im_curr.close()
+        self.im_curr = None
+        self.im_next += 1
+
+        self.draw = None
+        self.cur_y = None
+
+    def start_image(self):
+        self.im_curr = Image.new("1", (self.width, self.height))
+        self.draw = ImageDraw.Draw(self.im_curr)
+        self.cur_y = 0
 
 
 if __name__ == '__main__':
