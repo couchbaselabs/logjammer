@@ -15,14 +15,9 @@ import logmerge
 def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
-    # Custom argument parser.
-    argument_parser = argparse.ArgumentParser(
-        description="""%(prog)s provides log analysis
-                       (extends logmerge.py feature set)""")
-
-    # Scan the logs to build up pattern info's.
+    # Scan the logs to build the pattern info's.
     file_pos_term_counts, file_patterns = \
-        scan_patterns(argv, argument_parser)
+        scan_patterns(argv, init_argument_parser())
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -95,8 +90,11 @@ def main(argv):
 
     print "\n============================================"
 
-    scan_to_plot(argv, argument_parser,
-                 num_pattern_infos_base + num_pattern_infos_base_none,
+    num_unique_pattern_infos = \
+        num_pattern_infos_base + num_pattern_infos_base_none
+
+    scan_to_plot(argv, init_argument_parser(),
+                 num_unique_pattern_infos,
                  file_patterns)
 
 
@@ -109,6 +107,12 @@ def set_argv_default(argv, name, val):
             return
 
     argv.insert(1, prefix + val)
+
+
+def init_argument_parser():
+    return argparse.ArgumentParser(
+        description="""%(prog)s provides log analysis
+                       (extends logmerge.py feature set)""")
 
 
 # Need 32 hex chars for a uid pattern.
@@ -323,10 +327,16 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, argument_parser,
-                 num_pattern_infos, file_patterns):
-    return
+                 num_unique_pattern_infos, file_patterns):
+    p = Plotter(num_unique_pattern_infos, 2000)
+
+    p.start_image()
 
     def plot_visitor(path, timestamp, entry, entry_size):
+        pattern = entry_to_pattern(entry)
+        if not pattern:
+            return
+
         file_name = os.path.basename(path)
 
         patterns = file_patterns.get(file_name)
@@ -337,39 +347,34 @@ def scan_to_plot(argv, argument_parser,
                   argument_parser=argument_parser,
                   visitor=plot_visitor)
 
+    p.finish_image()
 
-class PlotVisitor(object):
+
+class Plotter(object):
     white = 1
 
-    def __init__(self, num_pattern_infos, num_entries, file_patterns):
-        self.num_pattern_infos = num_pattern_infos
-        self.num_entries = num_entries
-        self.file_patterns = file_patterns
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
 
-        self.width = num_pattern_infos
-        self.height = 2000
-
-        self.im_curr = None
-        self.im_next = 0
-
+        self.im = None
+        self.num = 0
         self.draw = None
         self.cur_y = 0
-
-        self.last_timestamp = None
-
-    def finish_image(self):
-        self.im_curr.save("out-" + "{0:0>3}".format(self.im_next) + ".png")
-        self.im_curr.close()
-        self.im_curr = None
-        self.im_next += 1
-
-        self.draw = None
-        self.cur_y = None
+        self.cur_timestamp = None
 
     def start_image(self):
-        self.im_curr = Image.new("1", (self.width, self.height))
-        self.draw = ImageDraw.Draw(self.im_curr)
+        self.im = Image.new("1", (self.width, self.height))
+        self.draw = ImageDraw.Draw(self.im)
         self.cur_y = 0
+        self.cur_timestamp = None
+
+    def finish_image(self):
+        self.im.save("out-" + "{0:0>3}".format(self.num) + ".png")
+        self.im.close()
+        self.num += 1
+        self.draw = None
+        self.cur_y = None
 
 
 if __name__ == '__main__':
