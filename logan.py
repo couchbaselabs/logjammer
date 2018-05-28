@@ -93,7 +93,8 @@ def main(argv):
 
     print "\n============================================"
 
-    scan_to_plot(argv, num_pattern_infos, num_entries, file_patterns)
+    scan_to_plot(argv, argument_parser,
+                 num_pattern_infos, num_entries, file_patterns)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -134,9 +135,9 @@ pattern_num_ish = [
     ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
     ("hms", r"T?\d\d:\d\d:\d\d"),
     ("ip4", r"\d+\.\d+\.\d+\.\d+"),
-    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # A numbered identifier, like "vb_8".
-    ("neg", r"-\d[\d\.]*"),               # A negative dotted number.
-    ("pos", r"\d[\d\.]*")]                # A positive dotted number.
+    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # Numbered identifier, like "vb8".
+    ("neg", r"-\d[\d\.]*"),               # Negative dotted number.
+    ("pos", r"\d[\d\.]*")]                # Positive dotted number.
 
 pattern_num_ish_joined = "(" + \
                          "|".join(["(" + p[1] + ")"
@@ -315,8 +316,8 @@ def mark_similar_pattern_info_pair(new, old):
 
 
 # Scan the log entries, plotting them based on the pattern info's.
-def scan_to_plot(argv, num_pattern_infos, num_entries,
-                 file_patterns):
+def scan_to_plot(argv, argument_parser,
+                 num_pattern_infos, num_entries, file_patterns):
     from PIL import Image, ImageDraw
 
     w = num_pattern_infos
