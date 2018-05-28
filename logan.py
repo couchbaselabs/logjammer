@@ -37,8 +37,9 @@ def main(argv):
 
     print "len(file_patterns)", len(file_patterns)
 
+    num_entries = 0
+
     num_pattern_infos = 0
-    num_pattern_infos_total = 0
     num_pattern_infos_base = 0
     num_pattern_infos_base_none = 0
 
@@ -56,7 +57,7 @@ def main(argv):
         for i, pattern_tuple in enumerate(pattern_tuples):
             pattern_info = patterns[pattern_tuple]
 
-            num_pattern_infos_total += pattern_info.total
+            num_entries += pattern_info.total
 
             if pattern_info.pattern_tuple_base:
                 num_pattern_infos_base += 1
@@ -74,8 +75,9 @@ def main(argv):
 
     print "\n============================================"
 
+    print "num_entries", num_entries
+
     print "num_pattern_infos", num_pattern_infos
-    print "num_pattern_infos_total", num_pattern_infos_total
     print "num_pattern_infos_base", num_pattern_infos_base
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
     print "len(pattern_tuple_bases)", len(pattern_tuple_bases)
@@ -91,7 +93,7 @@ def main(argv):
 
     print "\n============================================"
 
-    plot(argv, pattern_tuple_bases, pattern_tuple_base_keys)
+    scan_to_plot(argv, num_pattern_infos, num_entries, file_patterns)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -322,14 +324,15 @@ def mark_similar_pattern_info_pair(new, old):
         return True
 
 
-# Scan the log files and plot them with the given patterns.
-def plot(argv, pattern_tuple_bases, pattern_tuple_base_keys):
-    return  # TODO.
-
+# Plot the log files, based on the given pattern info's.
+def scan_to_plot(argv, num_pattern_infos, num_entries,
+                 file_patterns):
     from PIL import Image, ImageDraw
 
-    w = 200
-    h = 2000
+    w = num_pattern_infos
+    h = num_entries
+    if h > 2000:
+        h = 2000
 
     im = Image.new("1", (w, h))
 
