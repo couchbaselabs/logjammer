@@ -18,8 +18,12 @@ def main(argv):
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
+    # Scan the logs to build up pattern info's.
     file_pos_term_counts, file_patterns = \
         scan_patterns(argv, argument_parser)
+
+    # Process the pattern info's to find similar pattern info's.
+    mark_similar_pattern_infos(file_patterns)
 
     print "\n============================================"
 
@@ -68,10 +72,6 @@ def main(argv):
                 num_pattern_infos_base_none += 1
 
             print "      ", file_name, i, pattern_tuple, pattern_info.total
-
-            if False:
-                for recent in list(pattern_info.recents):
-                    print "        ", recent
 
     print "\n============================================"
 
@@ -158,9 +158,6 @@ def scan_patterns(argv, argument_parser):
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=visitor)
-
-    # Process the pattern info's to find similar pattern info's.
-    mark_similar_pattern_infos(file_patterns)
 
     return file_pos_term_counts, file_patterns
 
