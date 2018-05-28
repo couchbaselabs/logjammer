@@ -117,9 +117,9 @@ ex_rev = \
 
 pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 
-# Some number-like patterns such as optionally dotted or dashed or
-# slashed or colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and
-# IP addresses would also be matched.
+# Some number-like patterns such as dotted or dashed or slashed or
+# colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
+# addresses are also matched.
 pattern_num_ish = [
     ("hex", r"0x[a-f0-9][a-f0-9]+"),
     ("hex", r"0x[A-F0-9][A-F0-9]+"),
@@ -243,13 +243,6 @@ def scan_patterns_visitor():
             pattern_info.recents.append((timestamp, entry_first_line))
 
     return v, file_pos_term_counts, file_patterns
-
-
-# Parse a "positioned term".
-def parse_pos_term(pos_term):
-    i = pos_term.find('>')
-
-    return int(pos_term[0:i]), pos_term[i+1:]
 
 
 class PatternInfo(object):
