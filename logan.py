@@ -44,7 +44,10 @@ def main(argv):
     num_pattern_infos_base = 0
     num_pattern_infos_base_none = 0
 
-    pattern_tuple_bases = {}
+    # The unique (file_name, pattern_tuple)'s when shared
+    # pattern_tuple_base's are also considered.  The value is the
+    # total number of entries seen.
+    pattern_tuple_uniques = {}
 
     for file_name, patterns in file_patterns.iteritems():
         num_pattern_infos += len(patterns)
@@ -61,12 +64,17 @@ def main(argv):
             num_entries += pattern_info.total
 
             if pattern_info.pattern_tuple_base:
-                num_pattern_infos_base += 1
+                pattern_tuple = pattern_info.pattern_tuple_base
 
-                k = (file_name, pattern_info.pattern_tuple_base)
-                pattern_tuple_bases[k] = pattern_tuple_bases.get(k, 0) + 1
+                num_pattern_infos_base += 1
             else:
                 num_pattern_infos_base_none += 1
+
+            k = (file_name, pattern_tuple)
+
+            pattern_tuple_uniques[k] = \
+                pattern_tuple_uniques.get(k, 0) + \
+                pattern_info.total
 
             print "      ", file_name, i, pattern_tuple, pattern_info.total
 
@@ -77,25 +85,30 @@ def main(argv):
     print "num_pattern_infos", num_pattern_infos
     print "num_pattern_infos_base", num_pattern_infos_base
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
-    print "len(pattern_tuple_bases)", len(pattern_tuple_bases)
+
+    print "len(pattern_tuple_uniques)", \
+        len(pattern_tuple_uniques)
 
     print "\n============================================"
 
-    pattern_tuple_base_keys = pattern_tuple_bases.keys()
-    pattern_tuple_base_keys.sort()
+    pattern_tuple_ranks = {}
 
-    print "pattern_tuple_bases..."
-    for k in pattern_tuple_base_keys:
-        print "  ", pattern_tuple_bases[k], "-", k
+    pattern_tuple_unique_keys = pattern_tuple_uniques.keys()
+    pattern_tuple_unique_keys.sort()
+
+    print "pattern_tuple_uniques..."
+
+    for i, k in enumerate(pattern_tuple_unique_keys):
+        print "  ", pattern_tuple_uniques[k], "-", k
+
+        pattern_tuple_ranks[k] = i  # TODO - for now.
 
     print "\n============================================"
 
-    num_unique_pattern_infos = \
-        num_pattern_infos_base + num_pattern_infos_base_none
+    print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
 
     scan_to_plot(argv, init_argument_parser(),
-                 num_unique_pattern_infos,
-                 file_patterns)
+                 file_patterns, pattern_tuple_ranks, num_entries)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -262,8 +275,8 @@ def entry_to_pattern(entry, pos_term_counts=None):
 
 class PatternInfo(object):
     def __init__(self, pattern_tuple, first_timestamp, first_entry):
-        self.pattern_tuple_base = None
         self.pattern_tuple = pattern_tuple
+        self.pattern_tuple_base = None
         self.first_timestamp = first_timestamp
         self.first_entry = first_entry
         self.total = 0
@@ -327,15 +340,26 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, argument_parser,
-                 num_unique_pattern_infos, file_patterns):
-    p = Plotter(num_unique_pattern_infos, 2000)
+                 file_patterns, pattern_tuple_ranks, num_entries):
+    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
+
+    height = num_entries
+    if height > 2000:
+        height = 2000
+
+    p = Plotter(len(pattern_tuple_ranks), height)
 
     p.start_image()
 
     def plot_visitor(path, timestamp, entry, entry_size):
+        if (not timestamp) or (not entry):
+            return
+
         pattern = entry_to_pattern(entry)
         if not pattern:
             return
+
+        pattern_tuple = tuple(pattern)
 
         file_name = os.path.basename(path)
 
@@ -343,11 +367,25 @@ def scan_to_plot(argv, argument_parser,
         if not patterns:
             return
 
+        pattern_info = patterns[pattern_tuple]
+
+        if pattern_info.pattern_tuple_base:
+            pattern_tuple = pattern_info.pattern_tuple_base
+
+        rank = pattern_tuple_ranks[(file_name, pattern_tuple)]
+
+        p.plot(timestamp[:timestamp_prefix_len], rank)
+
     logmerge.main(argv,
                   argument_parser=argument_parser,
                   visitor=plot_visitor)
 
     p.finish_image()
+
+    print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
+    print "num_entries", num_entries
+    print "p.im_num", p.im_num
+    print "p.plot_num", p.plot_num
 
 
 class Plotter(object):
@@ -358,10 +396,11 @@ class Plotter(object):
         self.height = height
 
         self.im = None
-        self.num = 0
+        self.im_num = 0
         self.draw = None
         self.cur_y = 0
         self.cur_timestamp = None
+        self.plot_num = 0
 
     def start_image(self):
         self.im = Image.new("1", (self.width, self.height))
@@ -370,11 +409,25 @@ class Plotter(object):
         self.cur_timestamp = None
 
     def finish_image(self):
-        self.im.save("out-" + "{0:0>3}".format(self.num) + ".png")
+        self.im.save("out-" + "{0:0>3}".format(self.im_num) + ".png")
         self.im.close()
-        self.num += 1
+        self.im_num += 1
         self.draw = None
         self.cur_y = None
+
+    def plot(self, timestamp, x):
+        if self.cur_timestamp != timestamp:
+            self.cur_y += 1
+
+        if self.cur_y > self.height:
+            self.finish_image()
+            self.start_image()
+
+        self.draw.point((x, self.cur_y), fill=self.white)
+
+        self.cur_timestamp = timestamp
+
+        self.plot_num += 1
 
 
 if __name__ == '__main__':
