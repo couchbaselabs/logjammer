@@ -7,6 +7,8 @@ import os
 import re
 import sys
 
+from dateutil import parser
+
 from PIL import Image, ImageDraw
 
 import logmerge
@@ -357,6 +359,9 @@ def mark_similar_pattern_info_pair(new, old):
         return True
 
 
+timestamp_gutter_width = 10
+
+
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
                  num_entries, first_timestamp):
@@ -371,7 +376,8 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
     # Initialize plotter.
     width_dir = len(pattern_tuple_ranks) + 1  # Width of a single dir.
 
-    width = 1 + width_dir * len(dirs)  # First pixel is encoded seconds.
+    width = timestamp_gutter_width + \
+        width_dir * len(dirs)  # First pixel is encoded seconds.
 
     height = num_entries
     if height > 2000:
@@ -385,29 +391,37 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
         for d, dir in enumerate(dirs_sorted):
             x_base = width_dir * d
 
-            x = x_base + (width_dir - 1)
+            x = timestamp_gutter_width + \
+                x_base + (width_dir - 1)
+
             p.draw.line([x, 0, x, height], fill="red")
 
             y_text = 0
 
-            p.draw.text((x_base, y_text), dir, fill="#669")
+            p.draw.text((timestamp_gutter_width + x_base, y_text),
+                        dir, fill="#669")
             y_text += height_text
 
             file_names = file_patterns.keys()
             file_names.sort()
 
             for file_name in file_names:
-                x = x_base + pattern_tuple_ranks[(file_name,)]
+                x = timestamp_gutter_width + \
+                    x_base + pattern_tuple_ranks[(file_name,)]
+
                 p.draw.line([x, 0, x, height], fill="green")
 
-                p.draw.text((x, y_text), file_name, fill="#336")
+                p.draw.text((x, y_text),
+                            file_name, fill="#336")
                 y_text += height_text
+
+    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
+
+    datetime_base = parser.parse(first_timestamp, fuzzy=True)
 
     p = Plotter(width, height, on_start_image)
 
     p.start_image()
-
-    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
 
     def plot_visitor(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -432,10 +446,16 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
 
         rank = pattern_tuple_ranks[(file_name, pattern_tuple)]
 
-        dir = os.path.dirname(path)
-        dir_rank = dirs[dir]
+        rank_dir = dirs[os.path.dirname(path)]
 
-        p.plot(timestamp[:timestamp_prefix_len], (dir_rank * width_dir) + rank)
+        if p.plot(timestamp[:timestamp_prefix_len],
+                  (rank_dir * width_dir) + rank):
+            datetime_cur = parser.parse(timestamp, fuzzy=True)
+
+            delta_seconds = int((datetime_cur - datetime_base).total_seconds())
+
+            p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
+                        fill=to_rgb(delta_seconds))
 
     # Driver for visitor callbacks comes from logmerge.
     logmerge.main_with_args(args, visitor=plot_visitor)
@@ -480,22 +500,29 @@ class Plotter(object):
         self.cur_y = None
 
     def plot(self, timestamp, x):
+        cur_timestamp_changed = False
+
         if self.cur_timestamp != timestamp:
-            self.cur_y += 1
+            cur_timestamp_changed = True
+
+            self.cur_y += 1  # Move to next line.
 
         if self.cur_y > self.height:
             self.finish_image()
             self.start_image()
 
-        self.draw.point((x, self.cur_y), fill=self.white)
+        self.draw.point((timestamp_gutter_width + x, self.cur_y),
+                        fill=self.white)
 
         self.cur_timestamp = timestamp
 
         self.plot_num += 1
 
+        return cur_timestamp_changed
+
 
 def rank_dirs(paths):
-    path_prefix = os.path.commonprefix(paths)  # Strip any common prefix.
+    path_prefix = os.path.commonprefix(paths)  # Strip common prefix.
 
     dirs = {}
     for path in paths:
@@ -508,6 +535,14 @@ def rank_dirs(paths):
         dirs[dir] = i
 
     return dirs, dirs_sorted
+
+
+def to_rgb(v):
+    b = v & 255
+    g = (v >> 8) & 255
+    r = (v >> 16) & 255
+
+    return (r, g, b)
 
 
 if __name__ == '__main__':
