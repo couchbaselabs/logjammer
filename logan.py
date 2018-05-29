@@ -354,20 +354,50 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
 
     args = argument_parser.parse_args(argv[1:])
 
-    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
+    # Sort the dir names, with any common prefix already stripped.
+    dirs, dirs_sorted = \
+        rank_dirs(logmerge.expand_paths(args.path, "/*" + args.suffix))
+
+    # Initialize plotter.
+    width_dir = len(pattern_tuple_ranks) + 1  # Width of a single dir.
+
+    width = width_dir * len(dirs)
 
     height = num_entries
     if height > 2000:
         height = 2000
 
-    def on_start_image(p):
-        for file_name in file_patterns.keys():
-            x = pattern_tuple_ranks[(file_name,)]
-            p.draw.line([x, 0, x, height], fill="green")
+    height_text = 15
 
-    p = Plotter(len(pattern_tuple_ranks), height, on_start_image)
+    def on_start_image(p):
+        # Draw vertical lines to demarcate each file in each dir,
+        # and draw dir and file_name text.
+        for d, dir in enumerate(dirs_sorted):
+            x_base = width_dir * d
+
+            x = x_base + (width_dir - 1)
+            p.draw.line([x, 0, x, height], fill="red")
+
+            y_text = 0
+
+            p.draw.text((x_base, y_text), dir, fill="#669")
+            y_text += height_text
+
+            file_names = file_patterns.keys()
+            file_names.sort()
+
+            for file_name in file_names:
+                x = x_base + pattern_tuple_ranks[(file_name,)]
+                p.draw.line([x, 0, x, height], fill="green")
+
+                p.draw.text((x, y_text), file_name, fill="#336")
+                y_text += height_text
+
+    p = Plotter(width, height, on_start_image)
 
     p.start_image()
+
+    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
 
     def plot_visitor(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -392,8 +422,12 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
 
         rank = pattern_tuple_ranks[(file_name, pattern_tuple)]
 
-        p.plot(timestamp[:timestamp_prefix_len], rank)
+        dir = os.path.dirname(path)
+        dir_rank = dirs[dir]
 
+        p.plot(timestamp[:timestamp_prefix_len], (dir_rank * width_dir) + rank)
+
+    # Driver for visitor callbacks comes from logmerge.
     logmerge.main_with_args(args, visitor=plot_visitor)
 
     p.finish_image()
@@ -448,6 +482,22 @@ class Plotter(object):
         self.cur_timestamp = timestamp
 
         self.plot_num += 1
+
+
+def rank_dirs(paths):
+    path_prefix = os.path.commonprefix(paths)  # Strip any common prefix.
+
+    dirs = {}
+    for path in paths:
+        dirs[os.path.dirname(path[len(path_prefix):])] = True
+
+    dirs_sorted = dirs.keys()
+    dirs_sorted.sort()
+
+    for i, dir in enumerate(dirs_sorted):
+        dirs[dir] = i
+
+    return dirs, dirs_sorted
 
 
 if __name__ == '__main__':
