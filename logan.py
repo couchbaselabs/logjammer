@@ -359,7 +359,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
     def on_start_image(p):
         for file_name in file_patterns.keys():
             x = pattern_tuple_ranks[(file_name,)]
-            p.draw.line([x, 0, x, height], fill=p.white)
+            p.draw.line([x, 0, x, height], fill="green")
 
     p = Plotter(len(pattern_tuple_ranks), height, on_start_image)
 
@@ -403,7 +403,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
 
 
 class Plotter(object):
-    white = 1
+    white = "white"
 
     def __init__(self, width, height, on_start_image):
         self.width = width
@@ -418,7 +418,7 @@ class Plotter(object):
         self.plot_num = 0
 
     def start_image(self):
-        self.im = Image.new("1", (self.width, self.height))
+        self.im = Image.new("RGB", (self.width, self.height))
         self.draw = ImageDraw.Draw(self.im)
         self.cur_y = 0
         self.cur_timestamp = None
