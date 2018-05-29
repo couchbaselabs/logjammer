@@ -17,6 +17,14 @@ import logmerge
 def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
+    args = logmerge.add_arguments(
+        new_argument_parser()).parse_args(argv[1:])
+
+    if args.http_only is not None:
+        print "\n============================================"
+        http_server(args.http_only)
+        return
+
     # Scan the logs to build the pattern info's.
     paths, file_pos_term_counts, file_patterns, timestamp_info = \
         scan_patterns(argv)
@@ -128,6 +136,11 @@ def main(argv):
     scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
                  timestamp_info.num_unique, first_timestamp)
 
+    if args.http is not None:
+        print "\n============================================"
+        http_server(args.http)
+        return
+
 
 # Modify argv with a default for the --name=val argument.
 def set_argv_default(argv, name, val):
@@ -141,9 +154,21 @@ def set_argv_default(argv, name, val):
 
 
 def new_argument_parser():
-    return argparse.ArgumentParser(
+    ap = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
+
+    ap.add_argument('--http', type=str,
+                    help="""at the end of processing,
+                    start a web-server on the given HTTP port number
+                    """)
+
+    ap.add_argument('--http-only', type=str,
+                    help="""don't do any processing, but only
+                    start a web-server on the given HTTP port number
+                    """)
+
+    return ap
 
 
 # Need 32 hex chars for a uid pattern.
@@ -570,6 +595,26 @@ def to_rgb(v):
     r = (v >> 16) & 255
 
     return (r, g, b)
+
+
+def http_server(port):
+    import SimpleHTTPServer
+    import SocketServer
+
+    class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/':
+                self.path = '/logan.html'
+
+            return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
+
+    port_num = int(port)
+
+    server = SocketServer.TCPServer(('0.0.0.0', port_num), Handler)
+
+    print "http server started - http://localhost:" + port
+
+    server.serve_forever()
 
 
 if __name__ == '__main__':

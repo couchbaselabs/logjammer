@@ -51,6 +51,8 @@ window.onload = function() {
 
   var startSecondsSince2010;
 
+  imgEl.addEventListener("mousemove", onMouseMove, false)
+
   function onMouseMove(event) {
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
@@ -81,8 +83,6 @@ window.onload = function() {
       zeroPad(d.getMinutes(), 2) + ":" +
       zeroPad(d.getSeconds(), 2);
   }
-
-  imgEl.addEventListener("mousemove", onMouseMove, false)
 
   function pixelToInt(pixel) {
     return (pixel[0] << 16) + (pixel[1] << 8) + pixel[2];
