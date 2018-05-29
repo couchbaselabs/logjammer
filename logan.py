@@ -21,17 +21,22 @@ def main(argv):
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
 
-    print "\n============================================"
+    if False:
+        print "\n============================================"
 
-    print "len(file_pos_term_counts)", len(file_pos_term_counts)
+        print "len(file_pos_term_counts)", len(file_pos_term_counts)
 
-    for file_name, pos_term_counts in file_pos_term_counts.iteritems():
-        print "  ", file_name
-        print "    len(pos_term_counts)", len(pos_term_counts)
-        print "    sum(pos_term_counts.values)", sum(pos_term_counts.values())
-        print "    most common", pos_term_counts.most_common(10)
-        print "    least common", pos_term_counts.most_common()[:-10:-1]
-        print "    ------------------"
+        for file_name, pos_term_counts in file_pos_term_counts.iteritems():
+            print "  ", file_name
+            print "    len(pos_term_counts)", \
+                len(pos_term_counts)
+            print "    sum(pos_term_counts.values)", \
+                sum(pos_term_counts.values())
+            print "    most common", \
+                pos_term_counts.most_common(10)
+            print "    least common", \
+                pos_term_counts.most_common()[:-10:-1]
+            print "    ------------------"
 
     print "\n============================================"
 
@@ -57,9 +62,12 @@ def main(argv):
         pattern_tuples = patterns.keys()
         pattern_tuples.sort()
 
+        num_entries_file = 0
+
         for i, pattern_tuple in enumerate(pattern_tuples):
             pattern_info = patterns[pattern_tuple]
 
+            num_entries_file += pattern_info.total
             num_entries += pattern_info.total
 
             if pattern_info.pattern_tuple_base:
@@ -76,6 +84,8 @@ def main(argv):
                 pattern_info.total
 
             print "      ", file_name, i, pattern_tuple, pattern_info.total
+
+        pattern_tuple_uniques[(file_name,)] = num_entries_file
 
     print "\n============================================"
 
@@ -346,7 +356,12 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
     if height > 2000:
         height = 2000
 
-    p = Plotter(len(pattern_tuple_ranks), height)
+    def on_start_image(p):
+        for file_name in file_patterns.keys():
+            x = pattern_tuple_ranks[(file_name,)]
+            p.draw.line([x, 0, x, height], fill=p.white)
+
+    p = Plotter(len(pattern_tuple_ranks), height, on_start_image)
 
     p.start_image()
 
@@ -390,9 +405,10 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
 class Plotter(object):
     white = 1
 
-    def __init__(self, width, height):
+    def __init__(self, width, height, on_start_image):
         self.width = width
         self.height = height
+        self.on_start_image = on_start_image
 
         self.im = None
         self.im_num = 0
@@ -406,6 +422,9 @@ class Plotter(object):
         self.draw = ImageDraw.Draw(self.im)
         self.cur_y = 0
         self.cur_timestamp = None
+
+        if self.on_start_image:
+            self.on_start_image(self)
 
     def finish_image(self):
         self.im.save("out-" + "{0:0>3}".format(self.im_num) + ".png")
