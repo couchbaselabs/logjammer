@@ -1,0 +1,74 @@
+<html>
+<head>
+  <title></title>
+</head>
+
+<style>
+#img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0 0 0 0;
+  border: none;
+  padding: 0 0 0 0;
+}
+
+#bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0 0 0 0;
+  border: none;
+  padding: 0 0 0 0;
+  width: 100%;
+  height: 1px;
+  background: green;
+  opacity: 0.3;
+}
+
+#msg {
+  bottom: 0;
+  z-index: 1;
+}
+</style>
+
+<body>
+  <img id="img" src="out-000.png">
+  <div id="bar"></div>
+  <pre id="msg"></pre>
+</body>
+
+<script>
+window.onload = function() {
+  var barEl = document.getElementById("bar");
+  var imgEl = document.getElementById("img");
+  var msgEl = document.getElementById("msg");
+
+  var canvasEl;
+  var canvasCtx;
+
+  function onMouseMove(event) {
+    if (!canvasEl) {
+      canvasEl = document.createElement("canvas");
+      canvasEl.width = imgEl.width;
+      canvasEl.height = imgEl.height;
+
+      canvasCtx = canvasEl.getContext('2d');
+      canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
+    }
+
+    pixel = canvasCtx.getImageData(0, event.offsetY, 1, 1).data;
+
+    barEl.style.top = event.offsetY + "px";
+
+    msgEl.innerHTML =
+      event.offsetX + "," + event.offsetY + " =>" +
+      ' R: ' + pixel[0] +
+      ' G: ' + pixel[1] +
+      ' B: ' + pixel[2];
+  }
+
+  imgEl.addEventListener("mousemove", onMouseMove, false)
+}
+</script>
+</html>
