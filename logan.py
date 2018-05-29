@@ -401,7 +401,19 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
 
     height_text = 15
 
+    datetime_base = parser.parse(first_timestamp, fuzzy=True)
+
+    datetime_2010 = parser.parse("2010-01-01 00:00:00")
+
+    start_minutes_since_2010 = \
+        int((datetime_base - datetime_2010).total_seconds() / 60.0)
+
     def on_start_image(p):
+        # Encode the start_minutes_since_2010 at line 0.
+        p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
+                    fill=to_rgb(start_minutes_since_2010))
+        p.cur_y = 1
+
         # Draw background of vertical lines to demarcate each file in
         # each dir, and draw dir and file_name text.
         for d, dir in enumerate(dirs_sorted):
@@ -430,8 +442,6 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
                 p.draw.text((x, y_text),
                             file_name, fill="#336")
                 y_text += height_text
-
-    datetime_base = parser.parse(first_timestamp, fuzzy=True)
 
     p = Plotter(width, height, on_start_image)
 
