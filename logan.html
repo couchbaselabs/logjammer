@@ -20,16 +20,17 @@
   margin: 0 0 0 0;
   border: none;
   padding: 0 0 0 0;
-  width: 100%;
   height: 1px;
   background: green;
   opacity: 0.3;
 }
 
 #msg {
-  position: absolute;
+  position: fixed;
+  left: 5px;
   bottom: 0;
   z-index: 100;
+  color: #888;
 }
 </style>
 
@@ -48,6 +49,8 @@ window.onload = function() {
   var canvasEl;
   var canvasCtx;
 
+  var startSecondsSince2010;
+
   function onMouseMove(event) {
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
@@ -56,20 +59,27 @@ window.onload = function() {
 
       canvasCtx = canvasEl.getContext('2d');
       canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
-    }
 
-    pixel = canvasCtx.getImageData(0, event.offsetY, 1, 1).data;
+      startSecondsSince2010 =
+        pixelToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+
+      barEl.style.width = canvasEl.width + "px";
+    }
 
     barEl.style.top = event.offsetY + "px";
 
-    msgEl.innerHTML =
-      event.offsetX + "," + event.offsetY + " =>" +
-      ' R: ' + pixel[0] +
-      ' G: ' + pixel[1] +
-      ' B: ' + pixel[2];
+    d = new Date(2010, 0, 0, 0, 0,
+                 startSecondsSince2010 +
+                 pixelToInt (canvasCtx.getImageData(0, event.offsetY, 1, 1).data));
+
+    msgEl.innerHTML = d;
   }
 
   imgEl.addEventListener("mousemove", onMouseMove, false)
+
+  function pixelToInt(pixel) {
+    return (pixel[0] << 16) + (pixel[1] << 8) + pixel[2];
+  }
 }
 </script>
 </html>
