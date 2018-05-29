@@ -18,7 +18,8 @@ def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
     # Scan the logs to build the pattern info's.
-    paths, file_pos_term_counts, file_patterns = scan_patterns(argv)
+    paths, file_pos_term_counts, file_patterns, timestamp_info = \
+        scan_patterns(argv)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -124,10 +125,8 @@ def main(argv):
 
     print "\n============================================"
 
-    print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
-
     scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
-                 num_entries, first_timestamp)
+                 timestamp_info.num_unique, first_timestamp)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -187,6 +186,10 @@ re_num_ish = re.compile(pattern_num_ish_joined)
 
 re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
+# Used to group entries by timestamp into bins or buckets.
+timestamp_prefix = "YYYY-MM-DDTHH:MM:SS"
+timestamp_prefix_len = len(timestamp_prefix)
+
 
 # Scan the log files to build up pattern info's.
 def scan_patterns(argv):
@@ -195,13 +198,13 @@ def scan_patterns(argv):
     args = argument_parser.parse_args(argv[1:])
 
     # Custom visitor.
-    visitor, file_pos_term_counts, file_patterns = \
+    visitor, file_pos_term_counts, file_patterns, timestamp_info = \
         scan_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main_with_args(args, visitor=visitor)
 
-    return args.path, file_pos_term_counts, file_patterns
+    return args.path, file_pos_term_counts, file_patterns, timestamp_info
 
 
 def scan_patterns_visitor():
@@ -210,6 +213,8 @@ def scan_patterns_visitor():
 
     # Keyed by file name, value is dict of pattern => PatternInfo.
     file_patterns = {}
+
+    timestamp_info = TimestampInfo()
 
     def v(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -243,7 +248,18 @@ def scan_patterns_visitor():
         # Increment the total count of instances of this pattern.
         pattern_info.total += 1
 
-    return v, file_pos_term_counts, file_patterns
+        timestamp_bin = timestamp[:timestamp_prefix_len]
+        if timestamp_info.last != timestamp_bin:
+            timestamp_info.last = timestamp_bin
+            timestamp_info.num_unique += 1
+
+    return v, file_pos_term_counts, file_patterns, timestamp_info
+
+
+class TimestampInfo:
+    def __init__(self):
+        self.last = None
+        self.num_unique = 0
 
 
 def entry_to_pattern(entry, pos_term_counts=None):
@@ -364,7 +380,7 @@ timestamp_gutter_width = 10
 
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
-                 num_entries, first_timestamp):
+                 num_unique_timestamps, first_timestamp):
     argument_parser = logmerge.add_arguments(new_argument_parser())
 
     args = argument_parser.parse_args(argv[1:])
@@ -379,7 +395,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
     width = timestamp_gutter_width + \
         width_dir * len(dirs)  # First pixel is encoded seconds.
 
-    height = num_entries
+    height = num_unique_timestamps
     if height > 2000:
         height = 2000
 
@@ -409,13 +425,11 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
                 x = timestamp_gutter_width + \
                     x_base + pattern_tuple_ranks[(file_name,)]
 
-                p.draw.line([x, 0, x, height], fill="green")
+                p.draw.line([x, 0, x, height], fill="#363")
 
                 p.draw.text((x, y_text),
                             file_name, fill="#336")
                 y_text += height_text
-
-    timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
 
     datetime_base = parser.parse(first_timestamp, fuzzy=True)
 
@@ -462,8 +476,11 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
 
     p.finish_image()
 
+    print "len(dirs)", len(dirs)
+    print "len(file_patterns)", len(file_patterns)
     print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
-    print "num_entries", num_entries
+    print "num_unique_timestamps", num_unique_timestamps
+    print "first_timestamp", first_timestamp
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
 
