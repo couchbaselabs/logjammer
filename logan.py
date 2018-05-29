@@ -16,8 +16,7 @@ def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
     # Scan the logs to build the pattern info's.
-    file_pos_term_counts, file_patterns = \
-        scan_patterns(argv, init_argument_parser())
+    paths, file_pos_term_counts, file_patterns = scan_patterns(argv)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -107,8 +106,7 @@ def main(argv):
 
     print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
 
-    scan_to_plot(argv, init_argument_parser(),
-                 file_patterns, pattern_tuple_ranks, num_entries)
+    scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -170,17 +168,19 @@ re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 
 # Scan the log files to build up pattern info's.
-def scan_patterns(argv, argument_parser):
+def scan_patterns(argv):
+    argument_parser = logmerge.add_arguments(init_argument_parser())
+
+    args = argument_parser.parse_args(argv[1:])
+
     # Custom visitor.
     visitor, file_pos_term_counts, file_patterns = \
         scan_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
-    logmerge.main(argv,
-                  argument_parser=argument_parser,
-                  visitor=visitor)
+    logmerge.main_with_args(args, visitor=visitor)
 
-    return file_pos_term_counts, file_patterns
+    return args.path, file_pos_term_counts, file_patterns
 
 
 def scan_patterns_visitor():
@@ -339,8 +339,7 @@ def mark_similar_pattern_info_pair(new, old):
 
 
 # Scan the log entries, plotting them based on the pattern info's.
-def scan_to_plot(argv, argument_parser,
-                 file_patterns, pattern_tuple_ranks, num_entries):
+def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
     timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
 
     height = num_entries
@@ -377,7 +376,7 @@ def scan_to_plot(argv, argument_parser,
         p.plot(timestamp[:timestamp_prefix_len], rank)
 
     logmerge.main(argv,
-                  argument_parser=argument_parser,
+                  argument_parser=init_argument_parser(),
                   visitor=plot_visitor)
 
     p.finish_image()

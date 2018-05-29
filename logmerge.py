@@ -45,6 +45,10 @@ def main(argv, argument_parser=None, visitor=None):
 
     args = argument_parser.parse_args(argv[1:])
 
+    main_with_args(args, visitor=visitor)
+
+
+def main_with_args(args, visitor=None):
     start, end = parse_near(args.near, args.start, args.end)
 
     process(args.path,
