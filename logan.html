@@ -72,13 +72,27 @@ window.onload = function() {
                  startSecondsSince2010 +
                  pixelToInt (canvasCtx.getImageData(0, event.offsetY, 1, 1).data));
 
-    msgEl.innerHTML = d;
+    // Output YYYY-MM-DDTHH:MM:SS.
+    msgEl.innerHTML =
+      d.getFullYear() + "-" +
+      zeroPad(1 + d.getMonth(), 2) + "-" +
+      zeroPad(d.getDate(), 2) + "T" +
+      zeroPad(d.getHours(), 2) + "-" +
+      zeroPad(d.getMinutes(), 2) + "-" +
+      zeroPad(d.getSeconds(), 2);
   }
 
   imgEl.addEventListener("mousemove", onMouseMove, false)
 
   function pixelToInt(pixel) {
     return (pixel[0] << 16) + (pixel[1] << 8) + pixel[2];
+  }
+
+  var zeros = "0000000000";
+
+  function zeroPad(s, nchars) {
+    s = String(s)
+    return zeros.substring(0, nchars - s.length) + s
   }
 }
 </script>
