@@ -350,6 +350,10 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the pattern info's.
 def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
+    argument_parser = logmerge.add_arguments(new_argument_parser())
+
+    args = argument_parser.parse_args(argv[1:])
+
     timestamp_prefix_len = len("YYYY-MM-DDTHH:MM:SS")
 
     height = num_entries
@@ -390,9 +394,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
 
         p.plot(timestamp[:timestamp_prefix_len], rank)
 
-    logmerge.main(argv,
-                  argument_parser=new_argument_parser(),
-                  visitor=plot_visitor)
+    logmerge.main_with_args(args, visitor=plot_visitor)
 
     p.finish_image()
 
