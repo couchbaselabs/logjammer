@@ -370,8 +370,8 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
     height_text = 15
 
     def on_start_image(p):
-        # Draw vertical lines to demarcate each file in each dir,
-        # and draw dir and file_name text.
+        # Draw background of vertical lines to demarcate each file in
+        # each dir, and draw dir and file_name text.
         for d, dir in enumerate(dirs_sorted):
             x_base = width_dir * d
 
