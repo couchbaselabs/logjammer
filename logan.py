@@ -53,6 +53,8 @@ def main(argv):
     # total number of entries seen.
     pattern_tuple_uniques = {}
 
+    first_timestamp = None
+
     for file_name, patterns in file_patterns.iteritems():
         num_pattern_infos += len(patterns)
 
@@ -83,6 +85,10 @@ def main(argv):
                 pattern_tuple_uniques.get(k, 0) + \
                 pattern_info.total
 
+            if (not first_timestamp) or \
+               (first_timestamp > pattern_info.first_timestamp):
+                first_timestamp = pattern_info.first_timestamp
+
             if False:
                 print "      ", file_name, i, pattern_tuple, pattern_info.total
 
@@ -97,6 +103,8 @@ def main(argv):
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
 
     print "len(pattern_tuple_uniques)", len(pattern_tuple_uniques)
+
+    print "first_timestamp", first_timestamp
 
     print "\n============================================"
 
@@ -116,7 +124,8 @@ def main(argv):
 
     print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
 
-    scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries)
+    scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
+                 num_entries, first_timestamp)
 
 
 # Modify argv with a default for the --name=val argument.
@@ -349,7 +358,8 @@ def mark_similar_pattern_info_pair(new, old):
 
 
 # Scan the log entries, plotting them based on the pattern info's.
-def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
+def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
+                 num_entries, first_timestamp):
     argument_parser = logmerge.add_arguments(new_argument_parser())
 
     args = argument_parser.parse_args(argv[1:])
@@ -361,7 +371,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
     # Initialize plotter.
     width_dir = len(pattern_tuple_ranks) + 1  # Width of a single dir.
 
-    width = width_dir * len(dirs)
+    width = 1 + width_dir * len(dirs)  # First pixel is encoded seconds.
 
     height = num_entries
     if height > 2000:
