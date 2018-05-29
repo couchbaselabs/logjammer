@@ -67,8 +67,8 @@ def main(argv):
         for i, pattern_tuple in enumerate(pattern_tuples):
             pattern_info = patterns[pattern_tuple]
 
-            num_entries_file += pattern_info.total
             num_entries += pattern_info.total
+            num_entries_file += pattern_info.total
 
             if pattern_info.pattern_tuple_base:
                 pattern_tuple = pattern_info.pattern_tuple_base
@@ -83,7 +83,8 @@ def main(argv):
                 pattern_tuple_uniques.get(k, 0) + \
                 pattern_info.total
 
-            print "      ", file_name, i, pattern_tuple, pattern_info.total
+            if False:
+                print "      ", file_name, i, pattern_tuple, pattern_info.total
 
         pattern_tuple_uniques[(file_name,)] = num_entries_file
 
@@ -95,8 +96,7 @@ def main(argv):
     print "num_pattern_infos_base", num_pattern_infos_base
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
 
-    print "len(pattern_tuple_uniques)", \
-        len(pattern_tuple_uniques)
+    print "len(pattern_tuple_uniques)", len(pattern_tuple_uniques)
 
     print "\n============================================"
 
@@ -108,9 +108,9 @@ def main(argv):
     print "pattern_tuple_uniques..."
 
     for i, k in enumerate(pattern_tuple_unique_keys):
-        print "  ", pattern_tuple_uniques[k], "-", k
+        pattern_tuple_ranks[k] = i
 
-        pattern_tuple_ranks[k] = i  # TODO - for now.
+        print "  ", pattern_tuple_uniques[k], "-", k
 
     print "\n============================================"
 
@@ -130,7 +130,7 @@ def set_argv_default(argv, name, val):
     argv.insert(1, prefix + val)
 
 
-def init_argument_parser():
+def new_argument_parser():
     return argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
@@ -179,7 +179,7 @@ re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 # Scan the log files to build up pattern info's.
 def scan_patterns(argv):
-    argument_parser = logmerge.add_arguments(init_argument_parser())
+    argument_parser = logmerge.add_arguments(new_argument_parser())
 
     args = argument_parser.parse_args(argv[1:])
 
@@ -391,7 +391,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks, num_entries):
         p.plot(timestamp[:timestamp_prefix_len], rank)
 
     logmerge.main(argv,
-                  argument_parser=init_argument_parser(),
+                  argument_parser=new_argument_parser(),
                   visitor=plot_visitor)
 
     p.finish_image()
