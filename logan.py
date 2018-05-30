@@ -3,6 +3,7 @@
 
 import argparse
 import collections
+import json
 import os
 import re
 import subprocess
@@ -64,10 +65,10 @@ def main(argv):
     num_pattern_infos_base = 0
     num_pattern_infos_base_none = 0
 
-    # The unique (file_name, pattern_tuple)'s when shared
+    # The unique "file_name: pattern_tuple"'s when shared
     # pattern_tuple_base's are also considered.  The value is the
     # total number of entries seen.
-    pattern_tuple_uniques = {}
+    pattern_uniques = {}
 
     first_timestamp = None
 
@@ -95,20 +96,17 @@ def main(argv):
             else:
                 num_pattern_infos_base_none += 1
 
-            k = (file_name, pattern_tuple)
+            k = file_name + ": " + str(pattern_tuple)
 
-            pattern_tuple_uniques[k] = \
-                pattern_tuple_uniques.get(k, 0) + \
+            pattern_uniques[k] = \
+                pattern_uniques.get(k, 0) + \
                 pattern_info.total
 
             if (not first_timestamp) or \
                (first_timestamp > pattern_info.first_timestamp):
                 first_timestamp = pattern_info.first_timestamp
 
-            if False:
-                print "      ", file_name, i, pattern_tuple, pattern_info.total
-
-        pattern_tuple_uniques[(file_name,)] = num_entries_file
+        pattern_uniques[file_name] = num_entries_file
 
     print "\n============================================"
 
@@ -118,27 +116,43 @@ def main(argv):
     print "num_pattern_infos_base", num_pattern_infos_base
     print "num_pattern_infos_base_none", num_pattern_infos_base_none
 
-    print "len(pattern_tuple_uniques)", len(pattern_tuple_uniques)
+    print "len(pattern_uniques)", len(pattern_uniques)
 
     print "first_timestamp", first_timestamp
 
     print "\n============================================"
 
-    pattern_tuple_ranks = {}
+    pattern_ranks = {}
 
-    pattern_tuple_unique_keys = pattern_tuple_uniques.keys()
-    pattern_tuple_unique_keys.sort()
+    pattern_unique_keys = pattern_uniques.keys()
+    pattern_unique_keys.sort()
 
-    print "pattern_tuple_uniques..."
+    print "pattern_uniques..."
 
-    for i, k in enumerate(pattern_tuple_unique_keys):
-        pattern_tuple_ranks[k] = i
+    for i, k in enumerate(pattern_unique_keys):
+        pattern_ranks[k] = i
 
-        print "  ", pattern_tuple_uniques[k], "-", k
+        print "  ", pattern_uniques[k], "-", k
 
     print "\n============================================"
 
-    scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
+    with open("out.json", 'w') as f:
+        o = {
+            "argv":                        argv,
+            "paths":                       paths,
+            "num_entries":                 num_entries,
+            "num_pattern_infos":           num_pattern_infos,
+            "num_pattern_infos_base":      num_pattern_infos_base,
+            "num_pattern_infos_base_none": num_pattern_infos_base_none,
+            "pattern_uniques":             pattern_uniques,
+            "pattern_ranks":               pattern_ranks,
+            "num_unique_timestamps":       timestamp_info.num_unique,
+            "first_timestamp":             first_timestamp
+        }
+
+        f.write(json.dumps(o))
+
+    scan_to_plot(argv, file_patterns, pattern_ranks,
                  timestamp_info.num_unique, first_timestamp)
 
     if args.http is not None:
@@ -409,7 +423,7 @@ timestamp_gutter_width = 10
 
 
 # Scan the log entries, plotting them based on the pattern info's.
-def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
+def scan_to_plot(argv, file_patterns, pattern_ranks,
                  num_unique_timestamps, first_timestamp):
     argument_parser = logmerge.add_arguments(new_argument_parser())
 
@@ -420,7 +434,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
         rank_dirs(logmerge.expand_paths(args.path, "/*" + args.suffix))
 
     # Initialize plotter.
-    width_dir = len(pattern_tuple_ranks) + 1  # Width of a single dir.
+    width_dir = len(pattern_ranks) + 1  # Width of a single dir.
 
     width = timestamp_gutter_width + \
         width_dir * len(dirs)  # First pixel is encoded seconds.
@@ -465,7 +479,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
 
             for file_name in file_names:
                 x = timestamp_gutter_width + \
-                    x_base + pattern_tuple_ranks[(file_name,)]
+                    x_base + pattern_ranks[file_name]
 
                 p.draw.line([x, 0, x, height], fill="#363")
 
@@ -498,7 +512,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
         if pattern_info.pattern_tuple_base:
             pattern_tuple = pattern_info.pattern_tuple_base
 
-        rank = pattern_tuple_ranks[(file_name, pattern_tuple)]
+        rank = pattern_ranks[file_name + ": " + str(pattern_tuple)]
 
         rank_dir = dirs[os.path.dirname(path)]
 
@@ -518,7 +532,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
 
     print "len(dirs)", len(dirs)
     print "len(file_patterns)", len(file_patterns)
-    print "len(pattern_tuple_ranks)", len(pattern_tuple_ranks)
+    print "len(pattern_ranks)", len(pattern_ranks)
     print "num_unique_timestamps", num_unique_timestamps
     print "first_timestamp", first_timestamp
     print "p.im_num", p.im_num
