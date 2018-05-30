@@ -646,7 +646,8 @@ def handle_drill(req, p, argv):
     req.send_header("Content-type", "text/plain")
     req.end_headers()
 
-    cmd = ["./logmerge.py", "--out=--", "--near=" + d] + argv[1:]
+    cmd = ["./logmerge.py", "--out=--",
+           "--start=" + d, "--near=" + d] + argv[1:]
 
     print cmd
 
