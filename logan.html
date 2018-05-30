@@ -69,7 +69,7 @@ window.onload = function() {
 
   function onMouseMove(e) {
     if (!focused) {
-      msgEl.innerHTML = formatDate(eventDate(e));
+      msgEl.innerHTML = "./logmerge.py --start=" + formatDate(eventDate(e));
 
       barLEl.style.width = (e.offsetX - 3) + "px";
       barLEl.style.top = e.offsetY + "px";
