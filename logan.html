@@ -80,7 +80,7 @@ window.onload = function() {
       canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
 
       startSecondsSince2010 =
-        pixelToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+        rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
 
       barEl.style.width = canvasEl.width + "px";
     }
@@ -89,11 +89,11 @@ window.onload = function() {
 
     return new Date(2010, 0, 0, 0, 0,
                     startSecondsSince2010 +
-                    pixelToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
+                    rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
   }
 
-  function pixelToInt(pixel) {
-    return (pixel[0] << 16) + (pixel[1] << 8) + pixel[2];
+  function rgbToInt(rgb) {
+    return (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
   }
 
   function formatDate(d) {
