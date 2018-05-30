@@ -5,6 +5,7 @@ import argparse
 import collections
 import os
 import re
+import subprocess
 import sys
 
 from dateutil import parser
@@ -602,7 +603,9 @@ def to_rgb(v):
 
 
 def http_server(argv, port):
-    argv = [arg for arg in argv if not arg.startswith("--http")]
+    argv = [arg for arg in argv
+            if (not arg.startswith("--http")) and
+               (not arg.startswith("--out"))]
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
@@ -643,8 +646,12 @@ def handle_drill(req, p, argv):
     req.send_header("Content-type", "text/plain")
     req.end_headers()
 
-    req.wfile.write("hello world\n")
-    req.wfile.write(d)
+    cmd = ["./logmerge.py", "--out=--", "--near=" + d] + argv[1:]
+
+    print cmd
+
+    subprocess.call(cmd, stdout=req.wfile)
+
     req.wfile.close()
 
 
