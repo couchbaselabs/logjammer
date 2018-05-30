@@ -633,23 +633,27 @@ def http_server(argv, port):
 def handle_drill(req, p, argv):
     q = urlparse.parse_qs(p.query)
 
-    ds = q.get("d")
-    if not ds:
+    if not q.get("start"):
         req.send_response(404)
         req.end_headers()
         req.wfile.close()
         return
 
-    d = ds[0]  # Date to focus on.
+    start = q.get("start")[0]
+
+    near = start
+    if q.get("near"):
+        near = q.get("near")[0]
 
     req.send_response(200)
     req.send_header("Content-type", "text/plain")
     req.end_headers()
 
     cmd = ["./logmerge.py", "--out=--",
-           "--start=" + d, "--near=" + d] + argv[1:]
+           "--start=" + start, "--near=" + near] + argv[1:]
 
-    print cmd
+    req.wfile.write(" ".join(cmd))
+    req.wfile.write("\n\n")
 
     subprocess.call(cmd, stdout=req.wfile)
 
