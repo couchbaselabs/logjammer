@@ -51,9 +51,31 @@ window.onload = function() {
 
   var startSecondsSince2010;
 
+  window.addEventListener("dblclick", onDblClick, false)
   imgEl.addEventListener("mousemove", onMouseMove, false)
 
-  function onMouseMove(event) {
+  function onDblClick(e) {
+    var d = eventDate(e);
+
+    console.log(d);
+
+    window.open("/logan.html", "logan-drill")
+  }
+
+  function onMouseMove(e) {
+    var d = eventDate(e);
+
+    // Output YYYY-MM-DDTHH:MM:SS.
+    msgEl.innerHTML =
+      d.getFullYear() + "-" +
+      zeroPad(1 + d.getMonth(), 2) + "-" +
+      zeroPad(d.getDate(), 2) + "T" +
+      zeroPad(d.getHours(), 2) + ":" +
+      zeroPad(d.getMinutes(), 2) + ":" +
+      zeroPad(d.getSeconds(), 2);
+  }
+
+  function eventDate(e) {
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
       canvasEl.width = imgEl.width;
@@ -68,20 +90,11 @@ window.onload = function() {
       barEl.style.width = canvasEl.width + "px";
     }
 
-    barEl.style.top = event.offsetY + "px";
+    barEl.style.top = e.offsetY + "px";
 
-    d = new Date(2010, 0, 0, 0, 0,
-                 startSecondsSince2010 +
-                 pixelToInt(canvasCtx.getImageData(0, event.offsetY, 1, 1).data));
-
-    // Output YYYY-MM-DDTHH:MM:SS.
-    msgEl.innerHTML =
-      d.getFullYear() + "-" +
-      zeroPad(1 + d.getMonth(), 2) + "-" +
-      zeroPad(d.getDate(), 2) + "T" +
-      zeroPad(d.getHours(), 2) + ":" +
-      zeroPad(d.getMinutes(), 2) + ":" +
-      zeroPad(d.getSeconds(), 2);
+    return new Date(2010, 0, 0, 0, 0,
+                    startSecondsSince2010 +
+                    pixelToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
   }
 
   function pixelToInt(pixel) {
