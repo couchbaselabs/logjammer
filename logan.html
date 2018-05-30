@@ -99,9 +99,12 @@ window.onload = function() {
 
       startSecondsSince2010 =
         rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+
+      console.log("start timestamp",
+                  new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
     }
 
-    return new Date(2010, 0, 0, 0, 0,
+    return new Date(2010, 0, 1, 0, 0,
                     startSecondsSince2010 +
                     rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
   }
