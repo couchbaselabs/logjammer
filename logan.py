@@ -420,7 +420,7 @@ def scan_to_plot(argv, file_patterns, pattern_tuple_ranks,
     width = timestamp_gutter_width + \
         width_dir * len(dirs)  # First pixel is encoded seconds.
 
-    height = num_unique_timestamps
+    height = 1 + num_unique_timestamps
     if height > 2000:
         height = 2000
 
