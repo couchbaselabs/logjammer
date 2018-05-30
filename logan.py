@@ -20,6 +20,9 @@ import urlparse
 import logmerge
 
 
+timestamp_gutter_width = 10
+
+
 def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
@@ -136,6 +139,8 @@ def main(argv):
 
     print "\n============================================"
 
+    print "writing out.json"
+
     with open("out.json", 'w') as f:
         o = {
             "argv":                        argv,
@@ -147,10 +152,13 @@ def main(argv):
             "pattern_uniques":             pattern_uniques,
             "pattern_ranks":               pattern_ranks,
             "num_unique_timestamps":       timestamp_info.num_unique,
-            "first_timestamp":             first_timestamp
+            "first_timestamp":             first_timestamp,
+            "timestamp_gutter_width":      timestamp_gutter_width
         }
 
         f.write(json.dumps(o))
+
+    print "\n============================================"
 
     scan_to_plot(argv, file_patterns, pattern_ranks,
                  timestamp_info.num_unique, first_timestamp)
@@ -417,9 +425,6 @@ def mark_similar_pattern_info_pair(new, old):
         new.pattern_tuple_base = old.pattern_tuple_base
 
         return True
-
-
-timestamp_gutter_width = 10
 
 
 # Scan the log entries, plotting them based on the pattern info's.
