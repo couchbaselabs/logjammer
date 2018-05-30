@@ -51,7 +51,8 @@ window.onload = function() {
 
   var startSecondsSince2010;
 
-  window.addEventListener("dblclick", onDblClick, false)
+  imgEl.addEventListener("dblclick", onDblClick, false)
+
   imgEl.addEventListener("mousemove", onMouseMove, false)
 
   function onDblClick(e) {
@@ -59,20 +60,14 @@ window.onload = function() {
 
     console.log(d);
 
-    window.open("/logan.html", "logan-drill")
+    window.open("/logan-drill?d=" + formatDate(d), "logan-drill")
   }
 
   function onMouseMove(e) {
     var d = eventDate(e);
 
     // Output YYYY-MM-DDTHH:MM:SS.
-    msgEl.innerHTML =
-      d.getFullYear() + "-" +
-      zeroPad(1 + d.getMonth(), 2) + "-" +
-      zeroPad(d.getDate(), 2) + "T" +
-      zeroPad(d.getHours(), 2) + ":" +
-      zeroPad(d.getMinutes(), 2) + ":" +
-      zeroPad(d.getSeconds(), 2);
+    msgEl.innerHTML = formatDate(d);
   }
 
   function eventDate(e) {
@@ -99,6 +94,15 @@ window.onload = function() {
 
   function pixelToInt(pixel) {
     return (pixel[0] << 16) + (pixel[1] << 8) + pixel[2];
+  }
+
+  function formatDate(d) {
+    return d.getFullYear() + "-" +
+      zeroPad(1 + d.getMonth(), 2) + "-" +
+      zeroPad(d.getDate(), 2) + "T" +
+      zeroPad(d.getHours(), 2) + ":" +
+      zeroPad(d.getMinutes(), 2) + ":" +
+      zeroPad(d.getSeconds(), 2)
   }
 
   var zeros = "0000000000";
