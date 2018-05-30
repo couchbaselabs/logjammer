@@ -13,7 +13,7 @@
   padding: 0 0 0 0;
 }
 
-#bar {
+.bar {
   position: absolute;
   top: 0;
   left: 0;
@@ -36,38 +36,56 @@
 
 <body>
   <img id="img" src="out-000.png">
-  <div id="bar"></div>
+  <div id="barL" class="bar"></div>
+  <div id="barR" class="bar"></div>
   <pre id="msg"></pre>
 </body>
 
 <script>
 window.onload = function() {
-  var barEl = document.getElementById("bar");
-  var imgEl = document.getElementById("img");
-  var msgEl = document.getElementById("msg");
+  var barLEl = document.getElementById("barL");
+  var barREl = document.getElementById("barR");
+  var imgEl  = document.getElementById("img");
+  var msgEl  = document.getElementById("msg");
 
   var canvasEl;
   var canvasCtx;
 
   var startSecondsSince2010;
 
-  imgEl.addEventListener("dblclick", onDblClick, false)
+  var focused = false;
+
+  imgEl.addEventListener("click", onClick, false)
 
   imgEl.addEventListener("mousemove", onMouseMove, false)
 
-  function onDblClick(e) {
-    var d = eventDate(e);
+  imgEl.addEventListener("dblclick", onDblClick, false)
 
-    console.log(d);
+  function onClick(e) {
+    focused = !focused;
 
-    window.open("/logan-drill?d=" + formatDate(d), "logan-drill")
+    onMouseMove(e)
   }
 
   function onMouseMove(e) {
-    var d = eventDate(e);
+    if (!focused) {
+      msgEl.innerHTML = formatDate(eventDate(e));
 
-    // Output YYYY-MM-DDTHH:MM:SS.
-    msgEl.innerHTML = formatDate(d);
+      barLEl.style.width = (e.offsetX - 3) + "px";
+      barLEl.style.top = e.offsetY + "px";
+
+      barREl.style.left = (e.offsetX + 3) + "px";
+      barREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
+      barREl.style.top = e.offsetY + "px";
+    }
+  }
+
+  function onDblClick(e) {
+    onMouseMove(e)
+
+    focused = true;
+
+    window.open("/logan-drill?d=" + formatDate(eventDate(e)), "logan-drill")
   }
 
   function eventDate(e) {
@@ -81,11 +99,7 @@ window.onload = function() {
 
       startSecondsSince2010 =
         rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
-
-      barEl.style.width = canvasEl.width + "px";
     }
-
-    barEl.style.top = e.offsetY + "px";
 
     return new Date(2010, 0, 0, 0, 0,
                     startSecondsSince2010 +
