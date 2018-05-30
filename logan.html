@@ -82,8 +82,14 @@ function main(info) {
   }
 
   function onMouseMove(e) {
+    prepCanvasData();
+
     if (!focused) {
-      msgEl.innerHTML = formatDate(eventDate(e));
+      var rank = e.offsetX - info.timestamp_gutter_width;
+
+      var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+
+      msgEl.innerHTML = formatDate(eventDate(e)) + " " + rank + " " + rgb;
 
       barLEl.style.width = (e.offsetX - 3) + "px";
       barLEl.style.top = e.offsetY + "px";
@@ -102,7 +108,7 @@ function main(info) {
     window.open("/logan-drill?start=" + formatDate(eventDate(e)));
   }
 
-  function eventDate(e) {
+  function prepCanvasData() {
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
       canvasEl.width = imgEl.width;
@@ -117,7 +123,9 @@ function main(info) {
       console.log("start timestamp",
                   new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
     }
+  }
 
+  function eventDate(e) {
     return new Date(2010, 0, 1, 0, 0,
                     startSecondsSince2010 +
                     rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
