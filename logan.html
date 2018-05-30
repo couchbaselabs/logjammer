@@ -43,6 +43,20 @@
 
 <script>
 window.onload = function() {
+  fetch('out.json')
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(info) {
+      main(info);
+    });
+}
+
+var mainInfo;
+
+function main(info) {
+  mainInfo = info;
+
   var barLEl = document.getElementById("barL");
   var barREl = document.getElementById("barR");
   var imgEl  = document.getElementById("img");
