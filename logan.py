@@ -22,7 +22,7 @@ def main(argv):
 
     if args.http_only is not None:
         print "\n============================================"
-        http_server(args.http_only)
+        http_server(argv, args.http_only)
         return
 
     # Scan the logs to build the pattern info's.
@@ -138,7 +138,7 @@ def main(argv):
 
     if args.http is not None:
         print "\n============================================"
-        http_server(args.http)
+        http_server(argv, args.http)
         return
 
 
@@ -597,24 +597,43 @@ def to_rgb(v):
     return (r, g, b)
 
 
-def http_server(port):
+def http_server(argv, port):
+    argv = [arg for arg in argv if not arg.startswith("--http")]
+
     import SimpleHTTPServer
     import SocketServer
+    import urlparse
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
-            if self.path == '/':
+            p = urlparse.urlparse(self.path)
+
+            if p.path == '/logan-drill':
+                return handle_drill(self, p, argv)
+
+            if p.path == '/':
                 self.path = '/logan.html'
 
             return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
     port_num = int(port)
 
+    SocketServer.TCPServer.allow_reuse_address = True
+
     server = SocketServer.TCPServer(('0.0.0.0', port_num), Handler)
 
     print "http server started - http://localhost:" + port
 
     server.serve_forever()
+
+
+def handle_drill(req, p, argv):
+    req.send_response(200)
+    req.send_header("Content-type", "text/plain")
+    req.end_headers()
+
+    req.wfile.write("hello world\n")
+    req.wfile.close()
 
 
 if __name__ == '__main__':
