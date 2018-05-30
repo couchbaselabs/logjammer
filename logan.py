@@ -11,6 +11,10 @@ from dateutil import parser
 
 from PIL import Image, ImageDraw
 
+import SimpleHTTPServer
+import SocketServer
+import urlparse
+
 import logmerge
 
 
@@ -600,10 +604,6 @@ def to_rgb(v):
 def http_server(argv, port):
     argv = [arg for arg in argv if not arg.startswith("--http")]
 
-    import SimpleHTTPServer
-    import SocketServer
-    import urlparse
-
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
             p = urlparse.urlparse(self.path)
@@ -628,11 +628,23 @@ def http_server(argv, port):
 
 
 def handle_drill(req, p, argv):
+    q = urlparse.parse_qs(p.query)
+
+    ds = q.get("d")
+    if not ds:
+        req.send_response(404)
+        req.end_headers()
+        req.wfile.close()
+        return
+
+    d = ds[0]  # Date to focus on.
+
     req.send_response(200)
     req.send_header("Content-type", "text/plain")
     req.end_headers()
 
     req.wfile.write("hello world\n")
+    req.wfile.write(d)
     req.wfile.close()
 
 
