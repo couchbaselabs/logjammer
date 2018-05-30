@@ -57,6 +57,11 @@ var mainInfo;
 function main(info) {
   mainInfo = info;
 
+  var rankToPattern = [];
+  for (var k in info.pattern_ranks) {
+    rankToPattern[info.pattern_ranks[k]] = k;
+  }
+
   var barLEl = document.getElementById("barL");
   var barREl = document.getElementById("barR");
   var imgEl  = document.getElementById("img");
@@ -85,11 +90,21 @@ function main(info) {
     prepCanvasData();
 
     if (!focused) {
-      var rank = e.offsetX - info.timestamp_gutter_width;
+      var msg = formatDate(eventDate(e));
 
       var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+      if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
+        msg += " * "
+      } else {
+        msg += "   "
+      }
 
-      msgEl.innerHTML = formatDate(eventDate(e)) + " " + rank + " " + rgb;
+      var rank = e.offsetX - info.timestamp_gutter_width;
+      if (rank >= 0) {
+        msg += rankToPattern[rank];
+      }
+
+      msgEl.innerHTML = msg;
 
       barLEl.style.width = (e.offsetX - 3) + "px";
       barLEl.style.top = e.offsetY + "px";
@@ -149,6 +164,16 @@ function main(info) {
   function zeroPad(s, nchars) {
     s = String(s)
     return zeros.substring(0, nchars - s.length) + s
+  }
+
+  function mapSize(obj) {
+    var size = 0;
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        size++;
+      }
+    }
+    return size;
   }
 }
 </script>
