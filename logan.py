@@ -446,7 +446,7 @@ def plot(argv, args, scan_info):
 
     # Sort the dir names, with any common prefix already stripped.
     dirs, dirs_sorted = \
-        sort_dirs(logmerge.expand_paths(args.path, "/*" + args.suffix))
+        sort_dirs(logmerge.expand_paths(args.path, args.suffix))
 
     # Initialize plotter.
     width_dir = len(pattern_ranks) + 1  # Width of a single dir.

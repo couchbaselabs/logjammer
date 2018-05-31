@@ -86,7 +86,7 @@ def add_arguments(ap):
 
 
 def add_path_arguments(ap):
-    ap.add_argument('--suffix', type=str, default=".log",
+    ap.add_argument('--suffix', type=str, default="log",
                     help="""when expanding directory paths,
                     find log files that match this glob suffix
                     (default: %(default)s)""")
@@ -180,7 +180,7 @@ def process(paths,
             single_line=False,        # dict[path] => initial seek() positions.
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
-            suffix=".log",            # Suffix used with directory glob'ing.
+            suffix="log",             # Suffix used with directory glob'ing.
             timestamp_prefix=False,   # Emit normalized timestamp prefix.
             visitor=None,             # Optional entry visitor callback.
             wrap=None,                # Wrap long lines to this many chars.
@@ -188,7 +188,7 @@ def process(paths,
             w=None,                   # Optional output stream.
             bar=None):                # Optional progress bar.
     # Find log files.
-    paths = expand_paths(paths, "/*" + suffix)
+    paths = expand_paths(paths, suffix)
 
     total_size = 0
     for path in paths:
@@ -222,12 +222,13 @@ def process(paths,
         bar.update(total_size)
 
 
-def expand_paths(paths, glob_suffix):
+def expand_paths(paths, suffix):
     rv = []
 
     for path in paths:
         if os.path.isdir(path):
-            rv = rv + glob.glob(path + glob_suffix)
+            for s in suffix.split(","):
+                rv = rv + glob.glob(path + "/*." + s)
         else:
             rv.append(path)
 
