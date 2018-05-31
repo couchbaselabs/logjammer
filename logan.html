@@ -27,10 +27,17 @@
 
 #msg {
   position: fixed;
-  left: 5px;
   bottom: 0;
-  z-index: 100;
+  left: 0;
+  margin: 0 0 0 0;
+  padding: 3px 10px;
+  z-index: 1;
   color: #888;
+  font-size: 8pt;
+}
+
+.hit {
+  background-color: #dfd;
 }
 </style>
 
@@ -92,16 +99,34 @@ function main(info) {
     if (!focused) {
       var msg = formatDate(eventDate(e));
 
-      var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-      if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
-        msg += " * "
-      } else {
-        msg += "   "
-      }
-
       var rank = e.offsetX - info.timestamp_gutter_width;
       if (rank >= 0) {
-        msg += rankToPattern[rank];
+        rank = rank % (rankToPattern.length + 1);
+
+        var v = rankToPattern[rank];
+        if (v) {
+          var file = v;
+          var patt = " ";
+
+          var c = v.indexOf(':');
+          if (c > 0) {
+            file = v.substring(0, c);
+            patt = v.substring(c + 1);
+          }
+
+          msg += " " + file + "\n" + patt;
+        } else {
+          msg += "\n ";
+        }
+      } else {
+        msg += "\n ";
+      }
+
+      var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+      if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
+        msgEl.className = "hit";
+      } else {
+        msgEl.className = "";
       }
 
       msgEl.innerHTML = msg;

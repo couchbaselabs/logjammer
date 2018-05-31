@@ -20,7 +20,7 @@ import urlparse
 import logmerge
 
 
-timestamp_gutter_width = 10
+timestamp_gutter_width = 1
 
 
 def main(argv):
@@ -149,10 +149,9 @@ def main(argv):
             "num_pattern_infos":           num_pattern_infos,
             "num_pattern_infos_base":      num_pattern_infos_base,
             "num_pattern_infos_base_none": num_pattern_infos_base_none,
-            "pattern_uniques":             pattern_uniques,
             "pattern_ranks":               pattern_ranks,
-            "num_unique_timestamps":       timestamp_info.num_unique,
             "first_timestamp":             first_timestamp,
+            "num_unique_timestamps":       timestamp_info.num_unique,
             "timestamp_gutter_width":      timestamp_gutter_width
         }
 
