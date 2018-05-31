@@ -25,6 +25,18 @@
   opacity: 0.3;
 }
 
+.barV {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0 0 0 0;
+  border: none;
+  padding: 0 0 0 0;
+  width: 1px;
+  background: green;
+  opacity: 0.3;
+}
+
 #msg {
   position: fixed;
   bottom: 0;
@@ -45,6 +57,8 @@
   <img id="img" src="out-000.png">
   <div id="barHL" class="barH"></div>
   <div id="barHR" class="barH"></div>
+  <div id="barVT" class="barV"></div>
+  <div id="barVB" class="barV"></div>
   <div id="msg">loading...</div>
 </body>
 
@@ -71,8 +85,11 @@ function main(info) {
 
   var barHLEl = document.getElementById("barHL");
   var barHREl = document.getElementById("barHR");
-  var imgEl  = document.getElementById("img");
-  var msgEl  = document.getElementById("msg");
+  var barVTEl = document.getElementById("barVT");
+  var barVBEl = document.getElementById("barVB");
+
+  var imgEl = document.getElementById("img");
+  var msgEl = document.getElementById("msg");
 
   var canvasEl;
   var canvasCtx;
@@ -139,6 +156,13 @@ function main(info) {
       barHREl.style.left = (e.offsetX + 3) + "px";
       barHREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
       barHREl.style.top = e.offsetY + "px";
+
+      barVTEl.style.height = (e.offsetY - 3) + "px";
+      barVTEl.style.left = e.offsetX + "px";
+
+      barVBEl.style.top = (e.offsetY + 3) + "px";
+      barVBEl.style.height = (canvasEl.height - e.offsetY - 3) + "px";
+      barVBEl.style.left = e.offsetX + "px";
     }
   }
 
