@@ -13,7 +13,7 @@
   padding: 0 0 0 0;
 }
 
-.bar {
+.barH {
   position: absolute;
   top: 0;
   left: 0;
@@ -43,8 +43,8 @@
 
 <body>
   <img id="img" src="out-000.png">
-  <div id="barL" class="bar"></div>
-  <div id="barR" class="bar"></div>
+  <div id="barHL" class="barH"></div>
+  <div id="barHR" class="barH"></div>
   <div id="msg">loading...</div>
 </body>
 
@@ -69,8 +69,8 @@ function main(info) {
     rankToPattern[info.pattern_ranks[k]] = k;
   }
 
-  var barLEl = document.getElementById("barL");
-  var barREl = document.getElementById("barR");
+  var barHLEl = document.getElementById("barHL");
+  var barHREl = document.getElementById("barHR");
   var imgEl  = document.getElementById("img");
   var msgEl  = document.getElementById("msg");
 
@@ -133,12 +133,12 @@ function main(info) {
         msgEl.className = "";
       }
 
-      barLEl.style.width = (e.offsetX - 3) + "px";
-      barLEl.style.top = e.offsetY + "px";
+      barHLEl.style.width = (e.offsetX - 3) + "px";
+      barHLEl.style.top = e.offsetY + "px";
 
-      barREl.style.left = (e.offsetX + 3) + "px";
-      barREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
-      barREl.style.top = e.offsetY + "px";
+      barHREl.style.left = (e.offsetX + 3) + "px";
+      barHREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
+      barHREl.style.top = e.offsetY + "px";
     }
   }
 
