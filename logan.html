@@ -45,7 +45,7 @@
   <img id="img" src="out-000.png">
   <div id="barL" class="bar"></div>
   <div id="barR" class="bar"></div>
-  <pre id="msg"></pre>
+  <div id="msg"></div>
 </body>
 
 <script>
@@ -97,7 +97,7 @@ function main(info) {
     prepCanvasData();
 
     if (!focused) {
-      var msg = formatDate(eventDate(e));
+      var msg = formatDate(eventDate(e)) + "<br>";
 
       var rank = e.offsetX - info.timestamp_gutter_width;
       if (rank >= 0) {
@@ -114,13 +114,13 @@ function main(info) {
             patt = v.substring(c + 1);
           }
 
-          msg += " " + file + "\n" + patt;
-        } else {
-          msg += "\n ";
+          msg += file + "<br>" + patt;
         }
-      } else {
-        msg += "\n ";
       }
+
+      msg = msg.substring(0, 400);
+
+      msgEl.innerHTML = msg;
 
       var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
       if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
@@ -128,8 +128,6 @@ function main(info) {
       } else {
         msgEl.className = "";
       }
-
-      msgEl.innerHTML = msg;
 
       barLEl.style.width = (e.offsetX - 3) + "px";
       barLEl.style.top = e.offsetY + "px";
