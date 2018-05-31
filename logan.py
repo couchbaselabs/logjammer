@@ -26,9 +26,9 @@ max_image_height = 0  # 0 means unlimited plot image height.
 
 
 def main(argv):
-    set_argv_default(argv, "out", "/dev/null")
+    args = new_argument_parser().parse_args(argv[1:])
 
-    args = logmerge.add_arguments(new_argument_parser()).parse_args(argv[1:])
+    args.out = "/dev/null"  # For any invocations of logmerge.
 
     if (args.steps is None) and args.http:
         args.steps = "http"
@@ -73,15 +73,6 @@ def main(argv):
         return
 
 
-# Modify argv with a default for the --name=val argument.
-def set_argv_default(argv, name, val):
-    for arg in argv:
-        if arg.startswith("--" + name + "="):
-            return
-
-    argv.insert(1, "--" + name + "=" + val)
-
-
 def new_argument_parser():
     ap = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
@@ -110,6 +101,13 @@ def new_argument_parser():
                     help="""processing steps are a comma separated list,
                     where valid steps are: load, scan, save, plot, http;
                     (default: scan,save,plot)""")
+
+    # Subset of arguments shared with logmerge.
+
+    logmerge.add_path_arguments(ap)
+    logmerge.add_match_arguments(ap)
+    logmerge.add_timerange_arguments(ap)
+    logmerge.add_advanced_arguments(ap)
 
     return ap
 
@@ -649,7 +647,7 @@ def to_rgb(v):
 
 
 def http_server(argv, args):
-    strip = ["--http", "--info-file", "--plot-file", "--steps", "--out"]
+    strip = ["--http", "--info-file", "--plot-file", "--steps"]
 
     clean_argv = []
     for arg in argv:

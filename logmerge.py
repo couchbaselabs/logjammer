@@ -69,59 +69,86 @@ def main_with_args(args, visitor=None):
 
 
 def add_arguments(ap):
-    ap.add_argument('--fields', type=str,
-                    help="""when specified, heuristically parse key=value
-                    data from the log entries and emit those in CSV
-                    format instead of log entry lines; the FIELDS is
-                    a comma-separated list of key names""")
-    ap.add_argument('--match', type=str,
-                    help="""log entries that match this optional
-                    regexp will be emitted""")
-    ap.add_argument('--match-not', type=str,
-                    help="""log entries that do not match this optional
-                    regexp will be emitted""")
-    ap.add_argument('--max-lines-per-entry', type=int, default=100,
-                    help="""max number of lines in an entry before clipping,
-                    where 0 means no limit (default: %(default)s)""")
     ap.add_argument('--out', type=str, default="--",
                     help="""write to an OUT file instead
                     of by default to stdout; when an OUT file is specified,
                     a progress bar is shown instead on stdout""")
-    ap.add_argument('--single-line', type=bool, default=False,
-                    help="""collapse multi-line entries into a single line
-                    (default: %(default)s)""")
-    ap.add_argument('--start', type=str,
-                    help="""emit only entries that come at or after this
-                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
-    ap.add_argument('--end', type=str,
-                    help="""emit only entries that come at or before this
-                    timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
-    ap.add_argument('--near', type=str,
-                    help="""emit log entries that are near the given
-                    timestamp, by providing defaults to the start/end
-                    arguments, like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
-                    where the optional MINUTES defaults to 1 minute;
-                    example: 2018-01-31T17:15:00+/-10""")
+
+    add_path_arguments(ap)
+
+    add_match_arguments(ap)
+
+    add_timerange_arguments(ap)
+
+    add_advanced_arguments(ap)
+
+    return ap
+
+
+def add_path_arguments(ap):
     ap.add_argument('--suffix', type=str, default=".log",
                     help="""when expanding directory paths,
                     find log files that match this glob suffix
                     (default: %(default)s)""")
-    ap.add_argument('--timestamp-prefix', type=bool,
-                    help="""a normalized timestamp will be emitted first
-                    for each entry, to allow for easier post-processing,
-                    often used with --single-line
-                    (default: %(default)s)""")
-    ap.add_argument('--wrap', type=int,
-                    help="""wrap long lines to this many chars
-                    (default: %(default)s)""")
-    ap.add_argument('--wrap-indent', type=int, default=2,
-                    help="""when wrapping long lines, secondary lines
-                    will have this # of indentation space chars
-                    (default: %(default)s)""")
+
     ap.add_argument('path', nargs='*',
                     help="""a log file or directory of log files""")
 
-    return ap
+
+def add_match_arguments(ap):
+    g = ap.add_argument_group('regexp arguments',
+                              'filtering of log entries by regexp')
+    g.add_argument('--match', type=str,
+                   help="""log entries that match this optional
+                   regexp will be emitted""")
+    g.add_argument('--match-not', type=str,
+                   help="""log entries that do not match this optional
+                   regexp will be emitted""")
+
+
+def add_timerange_arguments(ap):
+    g = ap.add_argument_group('time range arguments',
+                              'filtering of log entries by time range')
+    g.add_argument('--start', type=str,
+                   help="""emit only entries that come at or after this
+                   timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
+    g.add_argument('--end', type=str,
+                   help="""emit only entries that come at or before this
+                   timestamp, like YYYY-MM-DD or YYYY-MM-DDThh:mm:ss""")
+    g.add_argument('--near', type=str,
+                   help="""emit log entries that are near the given
+                   timestamp, by providing defaults to the start/end
+                   arguments, like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
+                   where the optional MINUTES defaults to 1 minute;
+                   example: 2018-01-31T17:15:00+/-10""")
+
+
+def add_advanced_arguments(ap):
+    g = ap.add_argument_group('advanced arguments')
+
+    g.add_argument('--fields', type=str,
+                   help="""when specified, heuristically parse key=value
+                   data from the log entries and emit those in CSV
+                   format instead of log entry lines; the FIELDS is
+                   a comma-separated list of key names""")
+    g.add_argument('--max-lines-per-entry', type=int, default=100,
+                   help="""max number of lines in an entry before clipping,
+                   where 0 means no limit (default: %(default)s)""")
+    g.add_argument('--single-line', type=bool, default=False,
+                   help="""collapse multi-line entries into a single line
+                   (default: %(default)s)""")
+    g.add_argument('--timestamp-prefix', type=bool,
+                   help="""a normalized timestamp will be emitted first
+                   for each entry, to allow for easier post-processing,
+                   often used with --single-line
+                   (default: %(default)s)""")
+    g.add_argument('--wrap', type=int,
+                   help="""wrap long lines to this many chars
+                   (default: %(default)s)""")
+    g.add_argument('--wrap-indent', type=int, default=2,
+                   help="""when wrapping long lines, secondary lines
+                   will have this # of indentation space chars
+                   (default: %(default)s)""")
 
 
 # Optional near param might look like "2018-12-25T03:00:00+/-5",
