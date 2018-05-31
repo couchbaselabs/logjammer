@@ -529,7 +529,9 @@ def plot(argv, args, scan_info):
         if pattern_info["pattern_base"]:
             pattern_key = str(pattern_info["pattern_base"])
 
-        rank = pattern_ranks[file_name + ": " + pattern_key]
+        rank = pattern_ranks.get(file_name + ": " + pattern_key)
+        if rank is None:
+            return
 
         rank_dir = dirs[os.path.dirname(path)]
 
