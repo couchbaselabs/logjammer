@@ -42,8 +42,8 @@ def main(argv):
 
     if "load" in steps:
         print "\n============================================"
-        print "loading scan info file:", args.info_file
-        with open(args.info_file, 'r') as f:
+        print "loading scan info file:", args.scan_file
+        with open(args.scan_file, 'r') as f:
             scan_info = json.load(f)
 
     if "scan" in steps:
@@ -53,14 +53,19 @@ def main(argv):
 
     if "save" in steps:
         print "\n============================================"
-        print "saving scan info file:", args.info_file
-        with open(args.info_file, 'w') as f:
+        print "saving scan info file:", args.scan_file
+        with open(args.scan_file, 'w') as f:
             f.write(json.dumps(scan_info))
 
     if "plot" in steps:
         print "\n============================================"
         print "plotting..."
         plot(argv, args, scan_info)
+
+        plot_info = dict(scan_info)  # Copy before modifying.
+        del plot_info["file_patterns"]
+        with open(args.plot_prefix + ".json", 'w') as f:
+            f.write(json.dumps(plot_info))
 
     if "http" in steps:
         print "\n============================================"
@@ -84,10 +89,12 @@ def new_argument_parser():
 
     ap.add_argument('--http', type=str,
                     help="""when specified, this option overrides
-                    the default processing steps to be 'load,http';
-                    and HTTP is the port number to listen on""")
+                    the default processing steps to be 'load,http'
+                    in order to allow the analysis / plot to be
+                    interactively browsed;
+                    the HTTP is the port number to listen on""")
 
-    ap.add_argument('--info-file', type=str, default="out.json",
+    ap.add_argument('--scan-file', type=str, default="scan.json",
                     help="""when the processing steps include
                     'load' or 'save', the scan info will be
                     loaded from and/or saved to this file
@@ -96,8 +103,8 @@ def new_argument_parser():
     ap.add_argument('--plot-prefix', type=str, default="out",
                     help="""when the processing steps include
                     'plot', the plot images will be saved to
-                    files named like $(plot-prefix)-000.png
-                    (default: %(default)s)""")
+                    files named like $(plot-prefix)-000.png and
+                    $(plot-prefix).json (default: %(default)s)""")
 
     ap.add_argument('--steps', type=str,
                     help="""processing steps are a comma separated list,
