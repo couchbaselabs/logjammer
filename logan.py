@@ -239,6 +239,8 @@ re_num_ish = re.compile(pattern_num_ish_joined)
 
 re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
+re_erro = re.compile(r"[^A-Z]ERRO")
+
 # Used to group entries by timestamp into bins or buckets.
 timestamp_prefix = "YYYY-MM-DDTHH:MM:SS"
 timestamp_prefix_len = len(timestamp_prefix)
@@ -535,7 +537,7 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
             p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
                         fill=to_rgb(delta_seconds))
 
-        if (not im_changed) and "ERRO" in entry[0]:
+        if (not im_changed) and (re_erro.search(entry[0]) is not None):
             # Mark ERRO with a red triangle.
             p.draw.polygon((x, p.cur_y,
                             x+2, p.cur_y+3,
