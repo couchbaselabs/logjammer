@@ -112,6 +112,10 @@ function main(info) {
           if (c > 0) {
             file = v.substring(0, c);
             patt = v.substring(c + 1);
+
+            patt = patt.replace(/\d+>/g, '')
+            patt = patt.replace(/', '/g, ' ')
+            patt = patt.replace(/[[\]]/g, '')
           }
 
           msg += file + "<br>" + patt;
