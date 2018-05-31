@@ -20,7 +20,9 @@ import urlparse
 import logmerge
 
 
-timestamp_gutter_width = 1
+timestamp_gutter_width = 1  # In pixels.
+
+max_image_height = 0  # 0 means unlimited height.
 
 
 def main(argv):
@@ -444,8 +446,8 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
         width_dir * len(dirs)  # First pixel is encoded seconds.
 
     height = 1 + num_unique_timestamps
-    if height > 2000:
-        height = 2000
+    if height > max_image_height and max_image_height > 0:
+        height = max_image_height
 
     height_text = 15
 
@@ -520,14 +522,25 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
 
         rank_dir = dirs[os.path.dirname(path)]
 
-        if p.plot(timestamp[:timestamp_prefix_len],
-                  (rank_dir * width_dir) + rank):
+        x = (rank_dir * width_dir) + rank
+
+        timestamp_changed, im_changed = \
+            p.plot(timestamp[:timestamp_prefix_len], x)
+
+        if timestamp_changed:
             datetime_cur = parser.parse(timestamp, fuzzy=True)
 
             delta_seconds = int((datetime_cur - datetime_base).total_seconds())
 
             p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
                         fill=to_rgb(delta_seconds))
+
+        if (not im_changed) and "ERRO" in entry[0]:
+            # Mark ERRO with a red triangle.
+            p.draw.polygon((x, p.cur_y,
+                            x+2, p.cur_y+3,
+                            x-2, p.cur_y+3),
+                           fill="#933")
 
     # Driver for visitor callbacks comes from logmerge.
     logmerge.main_with_args(args, visitor=plot_visitor)
@@ -576,13 +589,15 @@ class Plotter(object):
 
     def plot(self, timestamp, x):
         cur_timestamp_changed = False
-
         if self.cur_timestamp != timestamp:
             cur_timestamp_changed = True
 
             self.cur_y += 1  # Move to next line.
 
+        cur_im_changed = False
         if self.cur_y > self.height:
+            cur_im_changed = True
+
             self.finish_image()
             self.start_image()
 
@@ -593,7 +608,7 @@ class Plotter(object):
 
         self.plot_num += 1
 
-        return cur_timestamp_changed
+        return cur_timestamp_changed, cur_im_changed
 
 
 def rank_dirs(paths):
