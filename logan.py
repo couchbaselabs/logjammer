@@ -28,37 +28,95 @@ max_image_height = 0  # 0 means unlimited height.
 def main(argv):
     set_argv_default(argv, "out", "/dev/null")
 
-    args = logmerge.add_arguments(
-        new_argument_parser()).parse_args(argv[1:])
+    args = logmerge.add_arguments(new_argument_parser()).parse_args(argv[1:])
 
-    if args.http_only is not None:
+    if (args.steps is None) and args.http:
+        args.steps = "load,http"
+
+    if (args.steps is None):
+        args.steps = "scan,save,plot"
+
+    steps = args.steps.split(",")
+
+    scan_info = None
+
+    if "load" in steps:
         print "\n============================================"
-        http_server(argv, args.http_only)
+        print "loading scan info file:", args.info_file
+        with open(args.info_file, 'r') as f:
+            scan_info = json.load(f)
+
+    if "scan" in steps:
+        print "\n============================================"
+        print "scanning..."
+        scan_info = scan(argv, args)
+
+    if "save" in steps:
+        print "\n============================================"
+        print "saving scan info file:", args.info_file
+        with open(args.info_file, 'w') as f:
+            f.write(json.dumps(scan_info))
+
+    if "plot" in steps:
+        print "\n============================================"
+        print "plotting..."
+        plot(argv, args, scan_info)
+
+    if "http" in steps:
+        print "\n============================================"
+        http_server(argv, args)
         return
 
-    # Scan the logs to build the pattern info's.
-    paths, file_pos_term_counts, file_patterns, timestamp_info = \
-        scan_patterns(argv)
+
+# Modify argv with a default for the --name=val argument.
+def set_argv_default(argv, name, val):
+    for arg in argv:
+        if arg.startswith("--" + name + "="):
+            return
+
+    argv.insert(1, "--" + name + "=" + val)
+
+
+def new_argument_parser():
+    ap = argparse.ArgumentParser(
+        description="""%(prog)s provides log analysis
+                       (extends logmerge.py feature set)""")
+
+    ap.add_argument('--http', type=str,
+                    help="""when specified, this option overrides
+                    the default processing steps to be 'load,http';
+                    and HTTP is the port number to listen on""")
+
+    ap.add_argument('--info-file', type=str, default="out.json",
+                    help="""when the processing steps include
+                    'load' or 'save', the scan info will be
+                    loaded from and/or saved to this file
+                    (default: %(default)s)""")
+
+    ap.add_argument('--plot-prefix', type=str, default="out",
+                    help="""when the processing steps include
+                    'plot', the plot images will be saved to
+                    files named like $(plot-prefix)-000.png
+                    (default: %(default)s)""")
+
+    ap.add_argument('--steps', type=str,
+                    help="""processing steps are a comma separated list,
+                    where valid steps are: load, scan, save, plot, http;
+                    (default: scan,save,plot)""")
+
+    return ap
+
+
+def scan(argv, args):
+    # Scan the logs to build the pattern info's with a custom visitor.
+    visitor, file_pos_term_counts, file_patterns, timestamp_info = \
+        scan_patterns_visitor()
+
+    # Main driver of visitor callbacks is reused from logmerge.
+    logmerge.main_with_args(args, visitor=visitor)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
-
-    if False:
-        print "\n============================================"
-
-        print "len(file_pos_term_counts)", len(file_pos_term_counts)
-
-        for file_name, pos_term_counts in file_pos_term_counts.iteritems():
-            print "  ", file_name
-            print "    len(pos_term_counts)", \
-                len(pos_term_counts)
-            print "    sum(pos_term_counts.values)", \
-                sum(pos_term_counts.values())
-            print "    most common", \
-                pos_term_counts.most_common(10)
-            print "    least common", \
-                pos_term_counts.most_common()[:-10:-1]
-            print "    ------------------"
 
     print "\n============================================"
 
@@ -70,8 +128,8 @@ def main(argv):
     num_pattern_infos_base = 0
     num_pattern_infos_base_none = 0
 
-    # The unique "file_name: pattern_tuple"'s when shared
-    # pattern_tuple_base's are also considered.  The value is the
+    # For categorizing the unique "file_name: pattern_key"'s when
+    # shared pattern_base's are also considered.  The value is the
     # total number of entries seen.
     pattern_uniques = {}
 
@@ -83,33 +141,35 @@ def main(argv):
         print "  ", file_name
         print "    len(patterns)", len(patterns)
 
-        pattern_tuples = patterns.keys()
-        pattern_tuples.sort()
+        pattern_keys = patterns.keys()
+        pattern_keys.sort()
 
         num_entries_file = 0
 
-        for i, pattern_tuple in enumerate(pattern_tuples):
-            pattern_info = patterns[pattern_tuple]
+        for i, pattern_key in enumerate(pattern_keys):
+            pattern_info = patterns[pattern_key]
 
-            num_entries += pattern_info.total
-            num_entries_file += pattern_info.total
+            pattern_info_total = pattern_info["total"]
 
-            if pattern_info.pattern_tuple_base:
-                pattern_tuple = pattern_info.pattern_tuple_base
+            num_entries += pattern_info_total
+            num_entries_file += pattern_info_total
+
+            if pattern_info["pattern_base"]:
+                pattern_key = str(pattern_info["pattern_base"])
 
                 num_pattern_infos_base += 1
             else:
                 num_pattern_infos_base_none += 1
 
-            k = file_name + ": " + str(pattern_tuple)
+            k = file_name + ": " + pattern_key
 
             pattern_uniques[k] = \
                 pattern_uniques.get(k, 0) + \
-                pattern_info.total
+                pattern_info_total
 
             if (not first_timestamp) or \
-               (first_timestamp > pattern_info.first_timestamp):
-                first_timestamp = pattern_info.first_timestamp
+               (first_timestamp > pattern_info["first_timestamp"]):
+                first_timestamp = pattern_info["first_timestamp"]
 
         pattern_uniques[file_name] = num_entries_file
 
@@ -139,64 +199,21 @@ def main(argv):
 
         print "  ", pattern_uniques[k], "-", k
 
-    print "\n============================================"
+    scan_info = {
+        "argv":                        argv,
+        "paths":                       args.path,
+        "file_patterns":               file_patterns,
+        "num_entries":                 num_entries,
+        "num_pattern_infos":           num_pattern_infos,
+        "num_pattern_infos_base":      num_pattern_infos_base,
+        "num_pattern_infos_base_none": num_pattern_infos_base_none,
+        "pattern_ranks":               pattern_ranks,
+        "first_timestamp":             first_timestamp,
+        "num_unique_timestamps":       timestamp_info.num_unique,
+        "timestamp_gutter_width":      timestamp_gutter_width
+    }
 
-    print "writing out.json"
-
-    with open("out.json", 'w') as f:
-        o = {
-            "argv":                        argv,
-            "paths":                       paths,
-            "num_entries":                 num_entries,
-            "num_pattern_infos":           num_pattern_infos,
-            "num_pattern_infos_base":      num_pattern_infos_base,
-            "num_pattern_infos_base_none": num_pattern_infos_base_none,
-            "pattern_ranks":               pattern_ranks,
-            "first_timestamp":             first_timestamp,
-            "num_unique_timestamps":       timestamp_info.num_unique,
-            "timestamp_gutter_width":      timestamp_gutter_width
-        }
-
-        f.write(json.dumps(o))
-
-    print "\n============================================"
-
-    scan_to_plot(argv, file_patterns, pattern_ranks,
-                 timestamp_info.num_unique, first_timestamp)
-
-    if args.http is not None:
-        print "\n============================================"
-        http_server(argv, args.http)
-        return
-
-
-# Modify argv with a default for the --name=val argument.
-def set_argv_default(argv, name, val):
-    prefix = "--" + name + "="
-
-    for arg in argv:
-        if arg.startswith(prefix):
-            return
-
-    argv.insert(1, prefix + val)
-
-
-def new_argument_parser():
-    ap = argparse.ArgumentParser(
-        description="""%(prog)s provides log analysis
-                       (extends logmerge.py feature set)""")
-
-    ap.add_argument('--http', type=str,
-                    help="""at the end of processing,
-                    start a web-server on the given HTTP port number
-                    """)
-
-    ap.add_argument('--http-only', type=str,
-                    help="""don't do any processing, but only
-                    start a web-server on the given HTTP port number
-                    """)
-
-    return ap
+    return scan_info
 
 
 # Need 32 hex chars for a uid pattern.
@@ -247,21 +264,6 @@ timestamp_prefix_len = len(timestamp_prefix)
 
 
 # Scan the log files to build up pattern info's.
-def scan_patterns(argv):
-    argument_parser = logmerge.add_arguments(new_argument_parser())
-
-    args = argument_parser.parse_args(argv[1:])
-
-    # Custom visitor.
-    visitor, file_pos_term_counts, file_patterns, timestamp_info = \
-        scan_patterns_visitor()
-
-    # Main driver of visitor callbacks is reused from logmerge.
-    logmerge.main_with_args(args, visitor=visitor)
-
-    return args.path, file_pos_term_counts, file_patterns, timestamp_info
-
-
 def scan_patterns_visitor():
     # Keyed by file name, value is collections.Counter.
     file_pos_term_counts = {}
@@ -293,15 +295,15 @@ def scan_patterns_visitor():
             patterns = {}
             file_patterns[file_name] = patterns
 
-        pattern_tuple = tuple(pattern)
+        pattern_key = str(pattern)
 
-        pattern_info = patterns.get(pattern_tuple)
+        pattern_info = patterns.get(pattern_key)
         if not pattern_info:
-            pattern_info = PatternInfo(pattern_tuple, timestamp, entry)
-            patterns[pattern_tuple] = pattern_info
+            pattern_info = make_pattern_info(pattern, timestamp)
+            patterns[pattern_key] = pattern_info
 
         # Increment the total count of instances of this pattern.
-        pattern_info.total += 1
+        pattern_info["total"] += 1
 
         timestamp_bin = timestamp[:timestamp_prefix_len]
         if timestamp_info.last != timestamp_bin:
@@ -314,7 +316,7 @@ def scan_patterns_visitor():
 class TimestampInfo:
     def __init__(self):
         self.last = None
-        self.num_unique = 0
+        self.num_unique = 0  # Number of unique timestamp bins.
 
 
 def entry_to_pattern(entry, pos_term_counts=None):
@@ -365,30 +367,30 @@ def entry_to_pattern(entry, pos_term_counts=None):
     return pattern
 
 
-class PatternInfo(object):
-    def __init__(self, pattern_tuple, first_timestamp, first_entry):
-        self.pattern_tuple = pattern_tuple
-        self.pattern_tuple_base = None
-        self.first_timestamp = first_timestamp
-        self.first_entry = first_entry
-        self.total = 0
+def make_pattern_info(pattern, first_timestamp):
+    return {
+        "pattern": pattern,
+        "pattern_base": None,
+        "first_timestamp": first_timestamp,
+        "total": 0
+    }
 
 
 # Find and mark similar pattern info's.
 def mark_similar_pattern_infos(file_patterns, scan_distance=10):
     for file_name, patterns in file_patterns.iteritems():
-        pattern_tuples = patterns.keys()
-        pattern_tuples.sort()  # Sort so similar patterns are nearby.
+        pattern_keys = patterns.keys()
+        pattern_keys.sort()  # Sort so similar patterns are nearby.
 
-        for i, pattern_tuple in enumerate(pattern_tuples):
-            curr_pattern_info = patterns[pattern_tuple]
+        for i, pattern_key in enumerate(pattern_keys):
+            curr_pattern_info = patterns[pattern_key]
 
             scan_idx = i - 1
             scan_until = i - scan_distance
 
             while scan_idx >= 0 and scan_idx > scan_until:
-                prev_pattern_tuple = pattern_tuples[scan_idx]
-                prev_pattern_info = patterns[prev_pattern_tuple]
+                prev_pattern_key = pattern_keys[scan_idx]
+                prev_pattern_info = patterns[prev_pattern_key]
 
                 if mark_similar_pattern_info_pair(curr_pattern_info,
                                                   prev_pattern_info):
@@ -400,46 +402,46 @@ def mark_similar_pattern_infos(file_patterns, scan_distance=10):
 # Examine a new and old pattern info, and if they're similar (only
 # differing by a single part), mark them and return True.
 def mark_similar_pattern_info_pair(new, old):
-    new_tuple = new.pattern_tuple
-    old_tuple = old.pattern_tuple
+    new_pattern = new["pattern"]
+    old_pattern = old["pattern"]
 
-    if len(new_tuple) != len(old_tuple):
+    if len(new_pattern) != len(old_pattern):
         return False
 
-    if old.pattern_tuple_base:
-        old_tuple = old.pattern_tuple_base
+    if old["pattern_base"]:
+        old_pattern = old["pattern_base"]
 
-    for i in range(len(new_tuple)):
-        if new_tuple[i] == old_tuple[i]:
+    for i in range(len(new_pattern)):
+        if new_pattern[i] == old_pattern[i]:
             continue
 
-        # See if remaining tuple parts are different.
-        if new_tuple[i+1:] != old_tuple[i+1:]:
+        # See if remaining pattern parts are different.
+        if new_pattern[i+1:] != old_pattern[i+1:]:
             return False
 
         # Here, new & old differ by only a single part, so set their
-        # pattern_tuple_base's with a '$' at that differing part.
-        # Optimize by reusing old's pattern_tuple_base.
-        if not old.pattern_tuple_base:
-            old_list = list(old_tuple)
-            old_list[i] = "$"
-            old.pattern_tuple_base = tuple(old_list)
+        # pattern_base's with a '$' at that differing part.  Optimize
+        # by reusing old's pattern_base.
+        if not old["pattern_base"]:
+            p = list(old_pattern)  # Copy.
+            p[i] = "$"
+            old["pattern_base"] = p
 
-        new.pattern_tuple_base = old.pattern_tuple_base
+        new["pattern_base"] = old["pattern_base"]
 
         return True
 
 
-# Scan the log entries, plotting them based on the pattern info's.
-def scan_to_plot(argv, file_patterns, pattern_ranks,
-                 num_unique_timestamps, first_timestamp):
-    argument_parser = logmerge.add_arguments(new_argument_parser())
-
-    args = argument_parser.parse_args(argv[1:])
+# Scan the log entries, plotting them based on the given scan info.
+def plot(argv, args, scan_info):
+    file_patterns = scan_info["file_patterns"]
+    pattern_ranks = scan_info["pattern_ranks"]
+    first_timestamp = scan_info["first_timestamp"]
+    num_unique_timestamps = scan_info["num_unique_timestamps"]
 
     # Sort the dir names, with any common prefix already stripped.
     dirs, dirs_sorted = \
-        rank_dirs(logmerge.expand_paths(args.path, "/*" + args.suffix))
+        sort_dirs(logmerge.expand_paths(args.path, "/*" + args.suffix))
 
     # Initialize plotter.
     width_dir = len(pattern_ranks) + 1  # Width of a single dir.
@@ -461,7 +463,7 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
         int((datetime_base - datetime_2010).total_seconds() / 60.0)
 
     def on_start_image(p):
-        # Encode the start_minutes_since_2010 at line 0.
+        # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
         p.cur_y = 1
@@ -495,7 +497,7 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
                             file_name, fill="#336")
                 y_text += height_text
 
-    p = Plotter(width, height, on_start_image)
+    p = Plotter(args.plot_prefix, width, height, on_start_image)
 
     p.start_image()
 
@@ -507,7 +509,7 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
         if not pattern:
             return
 
-        pattern_tuple = tuple(pattern)
+        pattern_key = str(pattern)
 
         file_name = os.path.basename(path)
 
@@ -515,12 +517,12 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
         if not patterns:
             return
 
-        pattern_info = patterns[pattern_tuple]
+        pattern_info = patterns[pattern_key]
 
-        if pattern_info.pattern_tuple_base:
-            pattern_tuple = pattern_info.pattern_tuple_base
+        if pattern_info["pattern_base"]:
+            pattern_key = str(pattern_info["pattern_base"])
 
-        rank = pattern_ranks[file_name + ": " + str(pattern_tuple)]
+        rank = pattern_ranks[file_name + ": " + pattern_key]
 
         rank_dir = dirs[os.path.dirname(path)]
 
@@ -550,7 +552,6 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
     p.finish_image()
 
     print "len(dirs)", len(dirs)
-    print "len(file_patterns)", len(file_patterns)
     print "len(pattern_ranks)", len(pattern_ranks)
     print "num_unique_timestamps", num_unique_timestamps
     print "first_timestamp", first_timestamp
@@ -561,7 +562,8 @@ def scan_to_plot(argv, file_patterns, pattern_ranks,
 class Plotter(object):
     white = "white"
 
-    def __init__(self, width, height, on_start_image):
+    def __init__(self, prefix, width, height, on_start_image):
+        self.prefix = prefix
         self.width = width
         self.height = height
         self.on_start_image = on_start_image
@@ -583,7 +585,7 @@ class Plotter(object):
             self.on_start_image(self)
 
     def finish_image(self):
-        self.im.save("out-" + "{0:0>3}".format(self.im_num) + ".png")
+        self.im.save(self.prefix + "-" + "{0:0>3}".format(self.im_num) + ".png")
         self.im.close()
         self.im_num += 1
         self.draw = None
@@ -613,7 +615,7 @@ class Plotter(object):
         return cur_timestamp_changed, cur_im_changed
 
 
-def rank_dirs(paths):
+def sort_dirs(paths):
     path_prefix = os.path.commonprefix(paths)  # Strip common prefix.
 
     dirs = {}
@@ -637,30 +639,32 @@ def to_rgb(v):
     return (r, g, b)
 
 
-def http_server(argv, port):
-    argv = [arg for arg in argv
-            if (not arg.startswith("--http")) and
-               (not arg.startswith("--out"))]
+def http_server(argv, args):
+    strip = ["--http", "--info-file", "--plot-file", "--steps"]
+
+    clean_argv = [arg for arg in argv if arg not in strip]
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
             p = urlparse.urlparse(self.path)
 
             if p.path == '/logan-drill':
-                return handle_drill(self, p, argv)
+                return handle_drill(self, p, clean_argv)
 
             if p.path == '/':
                 self.path = '/logan.html'
 
             return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
-    port_num = int(port)
+    port_num = int(args.http)
 
     SocketServer.TCPServer.allow_reuse_address = True
 
     server = SocketServer.TCPServer(('0.0.0.0', port_num), Handler)
 
-    print "http server started - http://localhost:" + port
+    print "http server started..."
+
+    print "  http://localhost:" + str(port_num)
 
     server.serve_forever()
 
@@ -684,6 +688,7 @@ def handle_drill(req, p, argv):
     req.send_header("Content-type", "text/plain")
     req.end_headers()
 
+    # Have logmerge.py emit to stdout.
     cmd = ["./logmerge.py", "--out=--",
            "--start=" + start, "--near=" + near] + argv[1:]
 
