@@ -22,7 +22,7 @@ import logmerge
 
 timestamp_gutter_width = 1  # In pixels.
 
-max_image_height = 0  # 0 means unlimited height.
+max_image_height = 0  # 0 means unlimited plot image height.
 
 
 def main(argv):
@@ -31,7 +31,7 @@ def main(argv):
     args = logmerge.add_arguments(new_argument_parser()).parse_args(argv[1:])
 
     if (args.steps is None) and args.http:
-        args.steps = "load,http"
+        args.steps = "http"
 
     if (args.steps is None):
         args.steps = "scan,save,plot"
@@ -89,7 +89,7 @@ def new_argument_parser():
 
     ap.add_argument('--http', type=str,
                     help="""when specified, this option overrides
-                    the default processing steps to be 'load,http'
+                    the default processing steps to be 'http'
                     in order to allow the analysis / plot to be
                     interactively browsed;
                     the HTTP is the port number to listen on""")
@@ -647,9 +647,13 @@ def to_rgb(v):
 
 
 def http_server(argv, args):
-    strip = ["--http", "--info-file", "--plot-file", "--steps"]
+    strip = ["--http", "--info-file", "--plot-file", "--steps", "--out"]
 
-    clean_argv = [arg for arg in argv if arg not in strip]
+    clean_argv = []
+    for arg in argv:
+        found = [s for s in strip if arg.startswith(s)]
+        if not found:
+            clean_argv.append(arg)
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def do_GET(self):
