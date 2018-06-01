@@ -601,7 +601,8 @@ class Plotter(object):
 
     def start_image(self):
         self.im = Image.new("RGB", (self.width, self.height))
-        self.im_name = self.prefix + "-" + "{0:0>3}".format(self.im_num) + ".png"
+        self.im_name = self.prefix + "-" + \
+            "{0:0>3}".format(self.im_num) + ".png"
         self.draw = ImageDraw.Draw(self.im)
         self.cur_y = 0
         self.cur_timestamp = None
@@ -678,9 +679,11 @@ def http_server(argv, args):
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def translate_path(self, path):
             if self.path == "/logan.html":
-                return os.path.dirname(os.path.realpath(__file__)) + "/logan.html"
+                return os.path.dirname(os.path.realpath(__file__)) + \
+                    "/logan.html"
 
-            return SimpleHTTPServer.SimpleHTTPRequestHandler.translate_path(self, path)
+            return SimpleHTTPServer.SimpleHTTPRequestHandler.translate_path(
+                self, path)
 
         def do_GET(self):
             p = urlparse.urlparse(self.path)
