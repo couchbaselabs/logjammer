@@ -103,6 +103,9 @@ def new_argument_parser():
                     files named like $(plot-prefix)-000.png and
                     $(plot-prefix).json (default: %(default)s)""")
 
+    ap.add_argument('--repo', type=str,
+                    help="""optional directory to source code repo""")
+
     ap.add_argument('--steps', type=str,
                     help="""processing steps are a comma separated list,
                     where valid steps are: load, scan, save, plot, http;
@@ -664,7 +667,7 @@ def to_rgb(v):
 
 
 def http_server(argv, args):
-    strip = ["--http", "--info-file", "--plot-file", "--steps"]
+    strip = ["--http", "--info-file", "--plot-file", "--repo", "--steps"]
 
     clean_argv = []
     for arg in argv:
@@ -683,7 +686,7 @@ def http_server(argv, args):
             p = urlparse.urlparse(self.path)
 
             if p.path == '/logan-drill':
-                return handle_drill(self, p, clean_argv)
+                return handle_drill(self, p, clean_argv, args.repo)
 
             if p.path == '/':
                 self.path = '/logan.html'
@@ -703,7 +706,7 @@ def http_server(argv, args):
     server.serve_forever()
 
 
-def handle_drill(req, p, argv):
+def handle_drill(req, p, argv, repo):
     q = urlparse.parse_qs(p.query)
 
     if not q.get("start"):
@@ -723,6 +726,21 @@ def handle_drill(req, p, argv):
     req.end_headers()
 
     # Have logmerge.py emit to stdout.
+    req.wfile.write("q: " + str(q))
+    req.wfile.write("\n")
+
+    if repo:
+        def chdir_to_repo():
+            os.chdir(repo)
+
+        req.wfile.write("\n=============================================\n")
+        cmd = ["repo", "grep", "-n", "-E", "manager_api|CfgGetIndexDefs"]
+        req.wfile.write(" ".join(cmd))
+        req.wfile.write("\n\n")
+        subprocess.call(cmd, stdout=req.wfile, preexec_fn=chdir_to_repo)
+        req.wfile.write("\n")
+
+    req.wfile.write("\n=============================================\n")
     cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
            "--out=--", "--start=" + start, "--near=" + near] + argv[1:]
 
