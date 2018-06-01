@@ -733,14 +733,11 @@ def handle_drill(req, p, argv, repo):
     req.wfile.write("\n")
 
     if repo:
-        def chdir_to_repo():
-            os.chdir(repo)
-
         req.wfile.write("\n=============================================\n")
         cmd = ["repo", "grep", "-n", "-E", "manager_api|CfgGetIndexDefs"]
         req.wfile.write(" ".join(cmd))
         req.wfile.write("\n\n")
-        subprocess.call(cmd, stdout=req.wfile, preexec_fn=chdir_to_repo)
+        subprocess.call(cmd, stdout=req.wfile, cwd=repo)
         req.wfile.write("\n")
 
     req.wfile.write("\n=============================================\n")
