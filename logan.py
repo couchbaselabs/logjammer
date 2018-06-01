@@ -723,8 +723,8 @@ def handle_drill(req, p, argv):
     req.end_headers()
 
     # Have logmerge.py emit to stdout.
-    cmd = ["./logmerge.py", "--out=--",
-           "--start=" + start, "--near=" + near] + argv[1:]
+    cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
+           "--out=--", "--start=" + start, "--near=" + near] + argv[1:]
 
     req.wfile.write(" ".join(cmd))
     req.wfile.write("\n\n")
