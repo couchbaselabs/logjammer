@@ -107,36 +107,43 @@ function main(info) {
   function onClick(e) {
     focused = !focused;
 
-    onMouseMove(e)
+    locationUpdate(e)
   }
 
   function onMouseMove(e) {
+    locationUpdate(e);
+  }
+
+  function onDblClick(e) {
+    focused = true;
+
+    var url = "/logan-drill?start=" + formatDate(eventDate(e));
+
+    var filePatt = filePatternAtX(e.offsetX);
+    if (filePatt) {
+      terms = filePatt[1].replace(/#[a-z][a-z0-9]+\s?/g, '');
+      terms = terms.trim();
+      terms = terms.replace(/\s+/g, ',');
+      terms = terms.replace(/'/g, '');
+
+      url = url + "&terms=" + terms
+    }
+
+    window.open(url);
+  }
+
+  function locationUpdate(e) {
+    var file;
+    var patt;
+
     prepCanvasData();
 
     if (!focused) {
       var msg = formatDate(eventDate(e)) + "<br>";
 
-      var rank = e.offsetX - info.timestamp_gutter_width;
-      if (rank >= 0) {
-        rank = rank % (rankToPattern.length + 1);
-
-        var v = rankToPattern[rank];
-        if (v) {
-          var file = v;
-          var patt = " ";
-
-          var c = v.indexOf(':');
-          if (c > 0) {
-            file = v.substring(0, c);
-            patt = v.substring(c + 1);
-
-            patt = patt.replace(/\d+>/g, '')
-            patt = patt.replace(/', '/g, ' ')
-            patt = patt.replace(/[[\]]/g, '')
-          }
-
-          msg += file + "<br>" + patt;
-        }
+      var filePatt = filePatternAtX(e.offsetX);
+      if (filePatt) {
+        msg += filePatt[0] + "<br>" + filePatt[1];
       }
 
       msg = msg.substring(0, 400);
@@ -164,14 +171,30 @@ function main(info) {
       barVBEl.style.height = (canvasEl.height - e.offsetY - 3) + "px";
       barVBEl.style.left = e.offsetX + "px";
     }
+
+    return patt;
   }
 
-  function onDblClick(e) {
-    onMouseMove(e)
+  function filePatternAtX(offsetX) {
+    var rank = offsetX - info.timestamp_gutter_width;
+    if (rank >= 0) {
+      rank = rank % (rankToPattern.length + 1);
 
-    focused = true;
+      var v = rankToPattern[rank];
+      if (v) {
+        var c = v.indexOf(':');
+        if (c > 0) {
+          var file = v.substring(0, c);
+          var patt = v.substring(c + 1);
 
-    window.open("/logan-drill?start=" + formatDate(eventDate(e)));
+          patt = patt.replace(/\d+>/g, '');
+          patt = patt.replace(/', '/g, ' ');
+          patt = patt.replace(/[[\]]/g, '');
+
+          return [file, patt];
+        }
+      }
+    }
   }
 
   function prepCanvasData() {
