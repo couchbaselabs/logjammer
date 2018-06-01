@@ -656,6 +656,12 @@ def http_server(argv, args):
             clean_argv.append(arg)
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+        def translate_path(self, path):
+            if self.path == "/logan.html":
+                return os.path.dirname(os.path.realpath(__file__)) + "/logan.html"
+
+            return SimpleHTTPServer.SimpleHTTPRequestHandler.translate_path(self, path)
+
         def do_GET(self):
             p = urlparse.urlparse(self.path)
 
