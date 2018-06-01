@@ -57,6 +57,8 @@ def main(argv):
         with open(args.scan_file, 'w') as f:
             f.write(json.dumps(scan_info))
 
+        print "wrote", args.scan_file
+
     if "plot" in steps:
         print "\n============================================"
         print "plotting..."
@@ -64,8 +66,12 @@ def main(argv):
 
         plot_info = dict(scan_info)  # Copy before modifying.
         del plot_info["file_patterns"]
-        with open(args.plot_prefix + ".json", 'w') as f:
+
+        plot_file = args.plot_prefix + ".json"
+        with open(plot_file, 'w') as f:
             f.write(json.dumps(plot_info))
+
+        print "wrote", plot_file
 
     if "http" in steps:
         print "\n============================================"
@@ -467,7 +473,11 @@ def plot(argv, args, scan_info):
     start_minutes_since_2010 = \
         int((datetime_base - datetime_2010).total_seconds() / 60.0)
 
+    image_files = []
+
     def on_start_image(p):
+        image_files.append(p.im_name)
+
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
@@ -564,6 +574,9 @@ def plot(argv, args, scan_info):
     print "first_timestamp", first_timestamp
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
+    print "image_files", image_files
+
+    return image_files
 
 
 class Plotter(object):
@@ -577,6 +590,7 @@ class Plotter(object):
 
         self.im = None
         self.im_num = 0
+        self.im_name = None
         self.draw = None
         self.cur_y = 0
         self.cur_timestamp = None
@@ -584,6 +598,7 @@ class Plotter(object):
 
     def start_image(self):
         self.im = Image.new("RGB", (self.width, self.height))
+        self.im_name = self.prefix + "-" + "{0:0>3}".format(self.im_num) + ".png"
         self.draw = ImageDraw.Draw(self.im)
         self.cur_y = 0
         self.cur_timestamp = None
@@ -592,9 +607,11 @@ class Plotter(object):
             self.on_start_image(self)
 
     def finish_image(self):
-        self.im.save(self.prefix + "-" + "{0:0>3}".format(self.im_num) + ".png")
+        self.im.save(self.im_name)
         self.im.close()
+        self.im = None
         self.im_num += 1
+        self.im_name = None
         self.draw = None
         self.cur_y = None
 
