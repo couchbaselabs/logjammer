@@ -709,6 +709,9 @@ def http_server(argv, args):
     server.serve_forever()
 
 
+re_term_disallowed = re.compile(r"[^a-zA-Z0-9\-_/]")
+
+
 def handle_drill(req, p, argv, repo):
     q = urlparse.parse_qs(p.query)
 
@@ -732,12 +735,23 @@ def handle_drill(req, p, argv, repo):
     req.wfile.write("q: " + str(q))
     req.wfile.write("\n")
 
-    if repo:
+    if repo and q.get("terms"):
         req.wfile.write("\n=============================================\n")
-        cmd = ["repo", "grep", "-n", "-E", "manager_api|CfgGetIndexDefs"]
+
+        terms = q.get("terms")[0].split(',')
+        terms = [re.sub(re_term_disallowed, '', term) for term in terms]
+        terms = [term for term in terms if len(term) >= 4]
+
+        req.wfile.write("searching for terms: ")
+        req.wfile.write(" ".join(terms))
+        req.wfile.write("\n\n")
+
+        cmd, out = repo_grep_terms(repo, terms)
+
+        req.wfile.write("filtered ")
         req.wfile.write(" ".join(cmd))
         req.wfile.write("\n\n")
-        subprocess.call(cmd, stdout=req.wfile, cwd=repo)
+        req.wfile.write(out)
         req.wfile.write("\n")
 
     req.wfile.write("\n=============================================\n")
@@ -750,6 +764,78 @@ def handle_drill(req, p, argv, repo):
     subprocess.call(cmd, stdout=req.wfile)
 
     req.wfile.close()
+
+
+def repo_grep_terms(repo, terms):
+    regexp = "|".join(terms)
+
+    cmd = ["repo", "grep", "-n", "-E", regexp]
+
+    if not terms:
+        return cmd, "(not enough terms to match)"
+
+    print repo
+    print cmd
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo)
+
+    best = []
+    best_terms_left_len = len(terms)
+
+    curr = None
+    curr_terms_left = None
+    curr_line_num = None
+
+    n = 0
+
+    for line in p.stdout:
+        n += 1
+
+        # A line looks like "fileName:lineNum:lineContent".
+        line_parts = line.split(":")
+        if len(line_parts) < 3:
+            continue
+
+        line_num = int(line_parts[1])
+
+        # If we're still in the same fileName, on the very next
+        # lineNum, and some new terms are now matching in the
+        # lineContent, then extend the curr info.
+        if (curr and
+            curr[0][0] == line_parts[0] and
+            curr_line_num + 1 == line_num and
+            remove_matching(curr_terms_left,
+                            line_parts[2:])):
+            curr.append(line_parts)
+            curr_line_num = line_num
+        else:
+            # Else start a new curr info.
+            curr = [line_parts]
+            curr_terms_left = list(terms)
+            remove_matching(curr_terms_left, line_parts[2:])
+            curr_line_num = line_num
+
+        # See if we have a new best scoring curr.
+        if best_terms_left_len > len(curr_terms_left):
+            best = list(curr)  # Copy.
+            best_terms_left_len = len(curr_terms_left)
+
+        if best_terms_left_len <= 0:
+            break
+
+    return cmd, "\n".join([":".join(x) for x in best])
+
+
+def remove_matching(terms, parts):
+    removed = False
+    for part in parts:
+        for part_term in re.split(re_term_disallowed, part):
+            for i, term in enumerate(terms):
+                if term == part_term:
+                    del terms[i]
+                    removed = True
+                    break
+    return removed
 
 
 if __name__ == '__main__':
