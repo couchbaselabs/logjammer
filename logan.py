@@ -742,7 +742,7 @@ def handle_drill(req, p, argv, repo):
         terms = [re.sub(re_term_disallowed, '', term) for term in terms]
         terms = [term for term in terms if len(term) >= 4]
 
-        req.wfile.write("searching for terms: ")
+        req.wfile.write("searching repo for terms: ")
         req.wfile.write(" ".join(terms))
         req.wfile.write("\n\n")
 
@@ -823,7 +823,7 @@ def repo_grep_terms(repo, terms):
         if best_terms_left_len <= 0:
             break
 
-    return cmd, "\n".join([":".join(x) for x in best])
+    return cmd, "".join([":".join(x) for x in best])
 
 
 def remove_matching(terms, parts):
