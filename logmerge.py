@@ -54,6 +54,7 @@ def main_with_args(args, visitor=None):
     process(args.path,
             fields=args.fields,
             match=args.match, match_not=args.match_not,
+            max_entries=args.max_entries,
             max_lines_per_entry=args.max_lines_per_entry,
             out=args.out,
             single_line=args.single_line,
@@ -131,6 +132,9 @@ def add_advanced_arguments(ap):
                    data from the log entries and emit those in CSV
                    format instead of log entry lines; the FIELDS is
                    a comma-separated list of key names""")
+    g.add_argument('--max-entries', type=int,
+                   help="""stop after this many entries are emitted
+                   (default: %(default)s)""")
     g.add_argument('--max-lines-per-entry', type=int, default=100,
                    help="""max number of lines in an entry before clipping,
                    where 0 means no limit (default: %(default)s)""")
@@ -175,6 +179,7 @@ def process(paths,
             fields=None,              # Optional fields to parse & emit as CSV.
             match=None,
             match_not=None,
+            max_entries=None,
             max_lines_per_entry=100,  # Entries that are too long are clipped.
             out='--',                 # Output file path, or '--' for stdout.
             single_line=False,        # dict[path] => initial seek() positions.
@@ -209,7 +214,8 @@ def process(paths,
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
     # Print heap entries until all entries are consumed.
-    emit_heap_entries(w, os.path.commonprefix(paths), heap_entries,
+    emit_heap_entries(w, os.path.commonprefix(paths),
+                      heap_entries, max_entries,
                       end=end, match=match, match_not=match_not,
                       single_line=single_line,
                       timestamp_prefix=timestamp_prefix, visitor=visitor,
@@ -347,7 +353,7 @@ def prepare_fields_filter(fields, visitor, w):
     return fields_filter, NoopWriter(w)
 
 
-def emit_heap_entries(w, path_prefix, heap_entries,
+def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                       end=None, match=None, match_not=None,
                       single_line=False,
                       timestamp_prefix=False,
@@ -362,6 +368,7 @@ def emit_heap_entries(w, path_prefix, heap_entries,
 
     i = 0  # Total entries seen so far.
     n = 0  # Total bytes of lines seen so far.
+    e = 0  # Total entries emitted.
 
     while heap_entries:
         timestamp, entry, entry_size, r = heapq.heappop(heap_entries)
@@ -380,6 +387,9 @@ def emit_heap_entries(w, path_prefix, heap_entries,
 
             entry_emit(w, path, timestamp, entry,
                        single_line, timestamp_prefix, text_wrapper)
+            e += 1
+            if max_entries and e > max_entries:
+                return
 
         entry, entry_size = r.read()
         if entry:

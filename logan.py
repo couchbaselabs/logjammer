@@ -727,6 +727,10 @@ def handle_drill(req, p, argv, repo):
     if q.get("near"):
         near = q.get("near")[0]
 
+    max_entries = "1000"
+    if q.get("max_entries"):
+        max_entries = q.get("max_entries")[0]
+
     req.send_response(200)
     req.send_header("Content-type", "text/plain")
     req.end_headers()
@@ -734,6 +738,16 @@ def handle_drill(req, p, argv, repo):
     # Have logmerge.py emit to stdout.
     req.wfile.write("q: " + str(q))
     req.wfile.write("\n")
+
+    req.wfile.write("\n=============================================\n")
+    cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
+           "--out=--", "--start=" + start, "--near=" + near,
+           "--max-entries=" + max_entries] + argv[1:]
+
+    req.wfile.write(" ".join(cmd))
+    req.wfile.write("\n\n")
+
+    subprocess.call(cmd, stdout=req.wfile)
 
     if repo and q.get("terms"):
         req.wfile.write("\n=============================================\n")
@@ -753,15 +767,6 @@ def handle_drill(req, p, argv, repo):
         req.wfile.write("\n\n")
         req.wfile.write(out)
         req.wfile.write("\n")
-
-    req.wfile.write("\n=============================================\n")
-    cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
-           "--out=--", "--start=" + start, "--near=" + near] + argv[1:]
-
-    req.wfile.write(" ".join(cmd))
-    req.wfile.write("\n\n")
-
-    subprocess.call(cmd, stdout=req.wfile)
 
     req.wfile.close()
 

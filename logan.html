@@ -117,7 +117,7 @@ function main(info) {
   function onDblClick(e) {
     focused = true;
 
-    var url = "/logan-drill?start=" + formatDate(eventDate(e));
+    var url = "/logan-drill?max_entries=1000&start=" + formatDate(eventDate(e));
 
     var filePatt = filePatternAtX(e.offsetX);
     if (filePatt) {
