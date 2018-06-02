@@ -779,6 +779,8 @@ def repo_grep_terms(repo, terms):
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=repo)
 
+    rv = []
+
     best = []
     best_terms_left_len = len(terms)
 
@@ -816,14 +818,20 @@ def repo_grep_terms(repo, terms):
             curr_line_num = line_num
 
         # See if we have a new best scoring curr.
-        if best_terms_left_len > len(curr_terms_left):
+        if best_terms_left_len >= len(curr_terms_left):
             best = list(curr)  # Copy.
             best_terms_left_len = len(curr_terms_left)
+
+            rv.append("".join([":".join(x) for x in best]))
+            if len(rv) > 10:
+                rv = list(rv[-10:])
 
         if best_terms_left_len <= 0:
             break
 
-    return cmd, "".join([":".join(x) for x in best])
+    rv.reverse()
+
+    return cmd, "\n".join(rv[:5])
 
 
 def remove_matching(terms, parts):
