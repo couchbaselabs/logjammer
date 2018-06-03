@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- mode: Python;-*-
 
+import __builtin__
 import argparse
 import collections
 import json
+import keyword
 import os
 import re
 import subprocess
@@ -753,10 +755,17 @@ def handle_drill(req, p, argv, repo):
         req.wfile.write("\n=============================================\n")
 
         terms = q.get("terms")[0].split(',')
-        terms = [re.sub(re_term_disallowed, '', term) for term in terms]
-        terms = [term for term in terms if len(term) >= 4]
 
         req.wfile.write("searching repo for terms: ")
+        req.wfile.write(" ".join(terms))
+        req.wfile.write("\n\n")
+
+        terms = [re.sub(re_term_disallowed, '', term) for term in terms]
+        terms = [term for term in terms if not keyword.iskeyword(term)]
+        terms = [term for term in terms if not hasattr(__builtin__, term)]
+        terms = [term for term in terms if len(term) >= 4]
+
+        req.wfile.write("searching repo for terms (pre-filtered): ")
         req.wfile.write(" ".join(terms))
         req.wfile.write("\n\n")
 
@@ -777,7 +786,7 @@ def repo_grep_terms(repo, terms):
     cmd = ["repo", "grep", "-n", "-E", regexp]
 
     if not terms:
-        return cmd, "(not enough terms to match)"
+        return cmd, "(not enough terms to repo grep)"
 
     print repo
     print cmd
