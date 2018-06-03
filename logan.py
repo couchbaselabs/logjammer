@@ -793,10 +793,9 @@ def repo_grep_terms(repo, terms):
     curr_terms_left = None
     curr_line_num = None
 
-    n = 0
-
     for line in p.stdout:
-        n += 1
+        if len(line) > 1000:
+            continue
 
         # A line looks like "fileName:lineNum:lineContent".
         line_parts = line.split(":")
