@@ -725,10 +725,6 @@ def handle_drill(req, p, argv, repo):
 
     start = q.get("start")[0]
 
-    near = start
-    if q.get("near"):
-        near = q.get("near")[0]
-
     max_entries = "1000"
     if q.get("max_entries"):
         max_entries = q.get("max_entries")[0]
@@ -743,8 +739,8 @@ def handle_drill(req, p, argv, repo):
 
     req.wfile.write("\n=============================================\n")
     cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
-           "--out=--", "--start=" + start, "--near=" + near,
-           "--max-entries=" + max_entries] + argv[1:]
+           "--out=--", "--max-entries=" + max_entries, "--start=" + start] + \
+           argv[1:]
 
     req.wfile.write(" ".join(cmd))
     req.wfile.write("\n\n")
