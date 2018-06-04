@@ -4,12 +4,15 @@
 </head>
 
 <style>
-#img {
+#img, #hilite {
   position: absolute;
   top: 0;
   left: 0;
   margin: 0 0 0 0;
   border: none;
+}
+
+#img {
   padding: 0 0 80px 0;
 }
 
@@ -37,6 +40,10 @@
   opacity: 0.5;
 }
 
+.hit {
+  background-color: #dfd;
+}
+
 #ftr {
   position: fixed;
   bottom: 0;
@@ -49,13 +56,28 @@
   color: #888;
 }
 
-#ftr button {
+#ftr .rhs {
   float: right;
   margin-right: 20px;
+  visibility: hidden;
 }
 
-.hit {
-  background-color: #dfd;
+#ftr .rhs button {
+  margin-bottom: 5px;
+}
+
+#ftr .hit .rhs {
+  visibility: visible;
+}
+
+.hilite {
+  white-space: nowrap;
+}
+
+#hiliteInput {
+  width: 50%;
+  margin-top: 5px;
+  background-color: #eee;
 }
 </style>
 
@@ -66,8 +88,14 @@
   <div id="barVT" class="barV"></div>
   <div id="barVB" class="barV"></div>
   <div id="ftr">
-    <button onclick="drill();">drill</button>
+    <div class="rhs">
+      <button onclick="drill();">drill &gt;&gt;</button><br/>
+    </div>
     <div id="msg">loading...</div>
+    <div class="hilite">
+      <button onclick="hilite();">hilite</button>
+      <input type="text" id="hiliteInput"/>
+    </div>
   </div>
 </body>
 
@@ -83,6 +111,7 @@ window.onload = function() {
 }
 
 var mainInfo;
+var mainRankToPattern;
 
 function main(info) {
   mainInfo = info;
@@ -91,6 +120,8 @@ function main(info) {
   for (var k in info.pattern_ranks) {
     rankToPattern[info.pattern_ranks[k]] = k;
   }
+
+  mainRankToPattern = rankToPattern;
 
   var barHLEl = document.getElementById("barHL");
   var barHREl = document.getElementById("barHR");
@@ -104,14 +135,15 @@ function main(info) {
   var canvasEl;
   var canvasCtx;
 
+  var hiliteEl;
+  var hiliteCtx;
+
   var startSecondsSince2010;
 
   var focused = false;
 
   imgEl.addEventListener("click", onClick, false)
-
   imgEl.addEventListener("mousemove", onMouseMove, false)
-
   imgEl.addEventListener("dblclick", onDblClick, false)
 
   function onClick(e) {
@@ -140,7 +172,7 @@ function main(info) {
     var file;
     var patt;
 
-    prepCanvasData();
+    prepCanvas();
 
     if (!focused) {
       var msg = formatDate(eventDate(e)) + "<br>";
@@ -179,7 +211,7 @@ function main(info) {
     return patt;
   }
 
-  function prepCanvasData() {
+  function prepCanvas() {
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
       canvasEl.width = imgEl.width;
@@ -193,6 +225,19 @@ function main(info) {
 
       console.log("start timestamp",
                   new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
+
+      hiliteEl = document.createElement("canvas");
+      hiliteEl.id = "hilite";
+      hiliteEl.width = imgEl.width;
+      hiliteEl.height = imgEl.height;
+
+      hiliteEl.addEventListener("click", onClick, false)
+      hiliteEl.addEventListener("mousemove", onMouseMove, false)
+      hiliteEl.addEventListener("dblclick", onDblClick, false)
+
+      imgEl.parentElement.insertBefore(hiliteEl, imgEl.nextSibling);
+
+      hiliteCtx = hiliteEl.getContext('2d');
     }
   }
 
@@ -248,6 +293,52 @@ function main(info) {
                     startSecondsSince2010 +
                     rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
   }
+
+  document.getElementById("hiliteInput").addEventListener("keyup",
+    function(e) {
+      if (e.keyCode === 13) {
+        e.preventDefault();
+        hilite();
+      }
+    });
+
+  function hilite(terms) {
+    hiliteCtx.clearRect(0, 0, hiliteEl.width, hiliteEl.height);
+
+    if (!terms) {
+      var s = document.getElementById("hiliteInput").value.trim();
+      if (s.length <= 0) {
+        return;
+      }
+
+      terms = s.split(" ");
+    }
+
+    if (!mainInfo || terms.length <= 0) {
+      return;
+    }
+
+    for (var rank in rankToPattern) {
+      var pattern = rankToPattern[rank];
+
+      var s = 0;
+      for (var i in terms) {
+        if (pattern.indexOf(terms[i]) >= 0) {
+          s += 1;
+        }
+      }
+
+      if (s > 0) {
+        var c = 50 + Math.round(200.0 * (s / terms.length));
+        var rgb = "rgb(" + c + "," + c + ",0,0.4)";
+        hiliteCtx.fillStyle = rgb;
+        hiliteCtx.fillRect(parseInt(rank) + info.timestamp_gutter_width, 0,
+                           1, hiliteEl.height);
+      }
+    }
+  }
+
+  window.hilite = hilite;
 
   function rgbToInt(rgb) {
     return (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
