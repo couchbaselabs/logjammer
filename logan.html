@@ -40,16 +40,14 @@
   opacity: 0.5;
 }
 
-.hit {
-  background-color: #dfd;
-}
-
 #ftr {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
   margin: 0 0 0 0;
+  border-top: 1px solid #666;
+  background-color: white;
   padding: 5px 10px;
   z-index: 1;
   font-size: 8pt;
@@ -66,7 +64,11 @@
   margin-bottom: 5px;
 }
 
-#ftr.hit .rhs {
+#ftr.hit {
+  background-color: #dfd;
+}
+
+#ftr.hit .rhs, #ftr.focused .rhs {
   visibility: visible;
 }
 
@@ -167,6 +169,11 @@ function main(info) {
       return;
     }
 
+    if (focused) {
+      ftrEl.className = "focused";
+      return;
+    }
+
     locationLast = e;
 
     var file;
@@ -174,41 +181,37 @@ function main(info) {
 
     prepCanvas();
 
-    if (!focused) {
-      var msg = formatDate(eventDate(e)) + "<br>";
+    var msg = formatDate(eventDate(e)) + "<br>";
 
-      var filePatt = filePatternAtX(e.offsetX);
-      if (filePatt) {
-        msg += filePatt[0] + "<br>" + filePatt[1];
-      }
-
-      msg = msg.substring(0, 400);
-
-      msgEl.innerHTML = msg;
-
-      var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-      if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
-        ftrEl.className = "hit";
-      } else {
-        ftrEl.className = "";
-      }
-
-      barHLEl.style.width = (e.offsetX - 3) + "px";
-      barHLEl.style.top = e.offsetY + "px";
-
-      barHREl.style.left = (e.offsetX + 3) + "px";
-      barHREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
-      barHREl.style.top = e.offsetY + "px";
-
-      barVTEl.style.height = (e.offsetY - 3) + "px";
-      barVTEl.style.left = e.offsetX + "px";
-
-      barVBEl.style.top = (e.offsetY + 3) + "px";
-      barVBEl.style.height = (canvasEl.height - e.offsetY - 3) + "px";
-      barVBEl.style.left = e.offsetX + "px";
+    var filePatt = filePatternAtX(e.offsetX);
+    if (filePatt) {
+      msg += filePatt[0] + "<br>" + filePatt[1];
     }
 
-    return patt;
+    msg = msg.substring(0, 400);
+
+    msgEl.innerHTML = msg;
+
+    var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
+    if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
+      ftrEl.className = "hit";
+    } else {
+      ftrEl.className = "";
+    }
+
+    barHLEl.style.width = (e.offsetX - 3) + "px";
+    barHLEl.style.top = e.offsetY + "px";
+
+    barHREl.style.left = (e.offsetX + 3) + "px";
+    barHREl.style.width = (canvasEl.width - e.offsetX - 3) + "px";
+    barHREl.style.top = e.offsetY + "px";
+
+    barVTEl.style.height = (e.offsetY - 3) + "px";
+    barVTEl.style.left = e.offsetX + "px";
+
+    barVBEl.style.top = (e.offsetY + 3) + "px";
+    barVBEl.style.height = (canvasEl.height - e.offsetY - 3) + "px";
+    barVBEl.style.left = e.offsetX + "px";
   }
 
   function prepCanvas() {
