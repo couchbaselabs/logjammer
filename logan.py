@@ -784,6 +784,8 @@ def repo_grep_terms(repo, terms):
     if not terms:
         return cmd, "(not enough terms to repo grep)"
 
+    repo = os.path.expanduser(repo)
+
     print repo
     print cmd
 
