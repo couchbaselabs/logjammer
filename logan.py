@@ -777,12 +777,12 @@ def handle_drill(req, p, argv, repo):
 
 
 def repo_grep_terms(repo, terms):
+    if not terms:
+        return ["error"], "(not enough terms to repo grep)"
+
     regexp = "|".join(terms)
 
     cmd = ["repo", "grep", "-n", "-E", regexp]
-
-    if not terms:
-        return cmd, "(not enough terms to repo grep)"
 
     repo = os.path.expanduser(repo)
 
