@@ -740,7 +740,7 @@ def handle_drill(req, p, argv, repo):
     req.wfile.write("\n=============================================\n")
     cmd = [os.path.dirname(os.path.realpath(__file__)) + "/logmerge.py",
            "--out=--", "--max-entries=" + max_entries, "--start=" + start] + \
-           argv[1:]
+        argv[1:]
 
     req.wfile.write(" ".join(cmd))
     req.wfile.write("\n\n")

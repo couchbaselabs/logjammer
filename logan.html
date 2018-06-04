@@ -41,11 +41,17 @@
   position: fixed;
   bottom: 0;
   left: 0;
+  width: 100%;
   margin: 0 0 0 0;
   padding: 3px 10px;
   z-index: 1;
   font-size: 8pt;
   color: #888;
+}
+
+#ftr button {
+  float: right;
+  margin-right: 20px;
 }
 
 .hit {
@@ -60,6 +66,7 @@
   <div id="barVT" class="barV"></div>
   <div id="barVB" class="barV"></div>
   <div id="ftr">
+    <button onclick="drill();">drill</button>
     <div id="msg">loading...</div>
   </div>
 </body>
@@ -117,11 +124,19 @@ function main(info) {
     locationUpdate(e);
   }
 
+  var locationLast;
+
   function onDblClick(e) {
-    drill(e);
+    drill(locationLast);
   }
 
   function locationUpdate(e) {
+    if (canvasEl && canvasEl.height < e.offsetY) {
+      return;
+    }
+
+    locationLast = e;
+
     var file;
     var patt;
 
@@ -204,6 +219,11 @@ function main(info) {
   }
 
   function drill(e) {
+    e = e || locationLast;
+    if (!e) {
+      return;
+    }
+
     focused = true;
 
     var url = "/logan-drill?max_entries=1000&start=" + formatDate(eventDate(e));
@@ -220,6 +240,8 @@ function main(info) {
 
     window.open(url);
   }
+
+  window.drill = drill;
 
   function eventDate(e) {
     return new Date(2010, 0, 1, 0, 0,
