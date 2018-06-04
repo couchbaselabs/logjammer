@@ -37,15 +37,15 @@
   opacity: 0.5;
 }
 
-#msg {
+#ftr {
   position: fixed;
   bottom: 0;
   left: 0;
   margin: 0 0 0 0;
   padding: 3px 10px;
   z-index: 1;
-  color: #888;
   font-size: 8pt;
+  color: #888;
 }
 
 .hit {
@@ -59,7 +59,9 @@
   <div id="barHR" class="barH"></div>
   <div id="barVT" class="barV"></div>
   <div id="barVB" class="barV"></div>
-  <div id="msg">loading...</div>
+  <div id="ftr">
+    <div id="msg">loading...</div>
+  </div>
 </body>
 
 <script>
@@ -90,6 +92,7 @@ function main(info) {
 
   var imgEl = document.getElementById("img");
   var msgEl = document.getElementById("msg");
+  var ftrEl = document.getElementById("ftr");
 
   var canvasEl;
   var canvasCtx;
@@ -115,21 +118,7 @@ function main(info) {
   }
 
   function onDblClick(e) {
-    focused = true;
-
-    var url = "/logan-drill?max_entries=1000&start=" + formatDate(eventDate(e));
-
-    var filePatt = filePatternAtX(e.offsetX);
-    if (filePatt) {
-      terms = filePatt[1].replace(/#[a-z][a-z0-9]+\s?/g, '');
-      terms = terms.trim();
-      terms = terms.replace(/\s+/g, ',');
-      terms = terms.replace(/'/g, '');
-
-      url = url + "&terms=" + terms
-    }
-
-    window.open(url);
+    drill(e);
   }
 
   function locationUpdate(e) {
@@ -152,9 +141,9 @@ function main(info) {
 
       var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
       if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
-        msgEl.className = "hit";
+        ftrEl.className = "hit";
       } else {
-        msgEl.className = "";
+        ftrEl.className = "";
       }
 
       barHLEl.style.width = (e.offsetX - 3) + "px";
@@ -173,6 +162,23 @@ function main(info) {
     }
 
     return patt;
+  }
+
+  function prepCanvasData() {
+    if (!canvasEl) {
+      canvasEl = document.createElement("canvas");
+      canvasEl.width = imgEl.width;
+      canvasEl.height = imgEl.height;
+
+      canvasCtx = canvasEl.getContext('2d');
+      canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
+
+      startSecondsSince2010 =
+        rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+
+      console.log("start timestamp",
+                  new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
+    }
   }
 
   function filePatternAtX(offsetX) {
@@ -197,21 +203,22 @@ function main(info) {
     }
   }
 
-  function prepCanvasData() {
-    if (!canvasEl) {
-      canvasEl = document.createElement("canvas");
-      canvasEl.width = imgEl.width;
-      canvasEl.height = imgEl.height;
+  function drill(e) {
+    focused = true;
 
-      canvasCtx = canvasEl.getContext('2d');
-      canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
+    var url = "/logan-drill?max_entries=1000&start=" + formatDate(eventDate(e));
 
-      startSecondsSince2010 =
-        rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+    var filePatt = filePatternAtX(e.offsetX);
+    if (filePatt) {
+      terms = filePatt[1].replace(/#[a-z][a-z0-9]+\s?/g, '');
+      terms = terms.trim();
+      terms = terms.replace(/\s+/g, ',');
+      terms = terms.replace(/'/g, '');
 
-      console.log("start timestamp",
-                  new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
+      url = url + "&terms=" + terms
     }
+
+    window.open(url);
   }
 
   function eventDate(e) {
