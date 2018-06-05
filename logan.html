@@ -305,13 +305,25 @@ function main(info) {
     for (var i in mainInfo.dirs) {
       var baseX = info.timestamp_gutter_width + (i * (rankToPattern.length + 1));
 
+    RANK_LOOP:
       for (var rank in rankToPattern) {
         var pattern = rankToPattern[rank];
 
         var s = 0;
         for (var i in terms) {
-          if (pattern.indexOf(terms[i]) >= 0) {
+          var term = terms[i];
+
+          var must = false;
+          if (term[0] == "+") {
+            must = true;
+            term = term.substring(1);
+          }
+
+          var seen = pattern.indexOf(term) >= 0;
+          if (seen) {
             s += 1;
+          } else if (must) {
+            continue RANK_LOOP;
           }
         }
 
