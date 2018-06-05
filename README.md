@@ -20,9 +20,10 @@ examples...
 
 > logan.py cbcollect*
 
-> open out-000.png
+the above emits analysis files, and an out-000.png image
 
 to start a web server on port 9999, using info from the previous logan run...
 
 > logan.py --http=9999 --repo=~/path/to/source/repo cbcollect*
 
+then, visit http://localhost:9999 in your web browser
