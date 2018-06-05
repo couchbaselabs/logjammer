@@ -94,7 +94,7 @@ def add_path_arguments(ap):
                     (default: %(default)s)""")
 
     ap.add_argument('path', nargs='*',
-                    help="""a log file or directory of log files""")
+                    help="""a log file, directory of log files, or zip files""")
 
 
 def add_match_arguments(ap):
