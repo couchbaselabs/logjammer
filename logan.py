@@ -32,6 +32,14 @@ def main(argv):
 
     args.out = "/dev/null"  # For any invocations of logmerge.
 
+    args.fields = None
+    args.max_entries = None
+    args.max_lines_per_entry = None
+    args.single_line = None
+    args.timestamp_prefix = None
+    args.wrap = None
+    args.wrap_indent = None
+
     if (args.steps is None) and args.http:
         args.steps = "http"
 
@@ -455,8 +463,9 @@ def plot(argv, args, scan_info):
     num_unique_timestamps = scan_info["num_unique_timestamps"]
 
     # Sort the dir names, with any common prefix already stripped.
-    dirs, dirs_sorted = \
-        sort_dirs(logmerge.expand_paths(args.path, args.suffix))
+    paths, total_size = logmerge.expand_paths(args.path, args.suffix)
+
+    dirs, dirs_sorted = sort_dirs(paths)
 
     # Initialize plotter.
     width_dir = len(pattern_ranks) + 1  # Width of a single dir.

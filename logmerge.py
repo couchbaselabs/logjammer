@@ -8,6 +8,7 @@ import heapq
 import os
 import re
 import sys
+import zipfile
 
 from dateutil import parser
 
@@ -193,11 +194,7 @@ def process(paths,
             w=None,                   # Optional output stream.
             bar=None):                # Optional progress bar.
     # Find log files.
-    paths = expand_paths(paths, suffix)
-
-    total_size = 0
-    for path in paths:
-        total_size += os.path.getsize(path)
+    paths, total_size = expand_paths(paths, suffix)
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start, end)
@@ -229,23 +226,51 @@ def process(paths,
 
 
 def expand_paths(paths, suffix):
-    rv = []
+    globbed = []
 
     for path in paths:
         if os.path.isdir(path):
             for s in suffix.split(","):
-                rv = rv + glob.glob(path + "/*." + s)
+                globbed = globbed + glob.glob(path + "/*." + s)
+        else:
+            globbed.append(path)
+
+    rv = []
+
+    total_size = 0
+
+    for path in globbed:
+        if path.endswith(".zip"):
+            zf = zipfile.ZipFile(path, 'r')
+            for info in zf.infolist():
+                rv.append(path + "/" + info.filename)
+                total_size += info.file_size
         else:
             rv.append(path)
+            total_size += os.path.getsize(path)
 
-    return rv
+    rv.sort()
+
+    return rv, total_size
 
 
 def prepare_heap_entries(paths, max_lines_per_entry, start, end):
     heap_entries = []
 
+    zfs = {} # Keyed by path, value is zipfile.ZipFile instance.
+
     for path in paths:
-        f = open(path, 'r')
+        zip_suffix = path.find(".zip/")
+        if zip_suffix > 0:
+            zp = path[0:zip_suffix+4]
+            zf = zfs.get(zp)
+            if not zf:
+                zf = zipfile.ZipFile(zp, 'r')
+                zfs[zp] = zf
+            f = zf.open(path[zip_suffix+5:], 'r')
+        else:
+            f = open(path, 'r')
+
         r = EntryReader(f, path, max_lines_per_entry)
 
         if start:  # Optional start timestamp.
