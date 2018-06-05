@@ -94,7 +94,7 @@ def add_path_arguments(ap):
                     (default: %(default)s)""")
 
     ap.add_argument('path', nargs='*',
-                    help="""a log file, directory of log files, or zip files""")
+                    help="""a log file, directory of log files, or zip file""")
 
 
 def add_match_arguments(ap):
@@ -257,16 +257,18 @@ def expand_paths(paths, suffix):
 def prepare_heap_entries(paths, max_lines_per_entry, start, end):
     heap_entries = []
 
-    zfs = {} # Keyed by path, value is zipfile.ZipFile instance.
+    zfs = {}  # Key is path, value is zipfile.ZipFile.
 
     for path in paths:
         zip_suffix = path.find(".zip/")
         if zip_suffix > 0:
             zp = path[0:zip_suffix+4]
+
             zf = zfs.get(zp)
             if not zf:
                 zf = zipfile.ZipFile(zp, 'r')
                 zfs[zp] = zf
+
             f = zf.open(path[zip_suffix+5:], 'r')
         else:
             f = open(path, 'r')
