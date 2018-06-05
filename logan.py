@@ -680,9 +680,8 @@ def http_server(argv, args):
 
     class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         def translate_path(self, path):
-            if self.path == "/logan.html":
-                return os.path.dirname(os.path.realpath(__file__)) + \
-                    "/logan.html"
+            if self.path in ["/logan.html", "/logan-vr.html"]:
+                return os.path.dirname(os.path.realpath(__file__)) + self.path
 
             return SimpleHTTPServer.SimpleHTTPRequestHandler.translate_path(
                 self, path)
