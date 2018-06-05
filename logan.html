@@ -113,17 +113,26 @@ window.onload = function() {
 }
 
 var mainInfo;
-var mainRankToPattern;
 
 function main(info) {
   mainInfo = info;
+
+  if (!info.dirs) {
+    var dirs = {};
+    for (var i in info.paths) {
+       dirs[info.paths[i].split("/")[0]] = true;
+    }
+    info.dirs = [];
+    for (var dir in dirs) {
+      info.dirs.push(dir);
+    }
+    info.dirs.sort();
+  }
 
   var rankToPattern = [];
   for (var k in info.pattern_ranks) {
     rankToPattern[info.pattern_ranks[k]] = k;
   }
-
-  mainRankToPattern = rankToPattern;
 
   var barHLEl = document.getElementById("barHL");
   var barHREl = document.getElementById("barHR");
@@ -244,28 +253,6 @@ function main(info) {
     }
   }
 
-  function filePatternAtX(offsetX) {
-    var rank = offsetX - info.timestamp_gutter_width;
-    if (rank >= 0) {
-      rank = rank % (rankToPattern.length + 1);
-
-      var v = rankToPattern[rank];
-      if (v) {
-        var c = v.indexOf(':');
-        if (c > 0) {
-          var file = v.substring(0, c);
-          var patt = v.substring(c + 1);
-
-          patt = patt.replace(/\d+>/g, '');
-          patt = patt.replace(/', '/g, ' ');
-          patt = patt.replace(/[[\]]/g, '');
-
-          return [file, patt];
-        }
-      }
-    }
-  }
-
   function drill(e) {
     e = e || locationLast;
     if (!e) {
@@ -291,15 +278,9 @@ function main(info) {
 
   window.drill = drill;
 
-  function eventDate(e) {
-    return new Date(2010, 0, 1, 0, 0,
-                    startSecondsSince2010 +
-                    rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
-  }
-
   document.getElementById("hiliteInput").addEventListener("keyup",
     function(e) {
-      if (e.keyCode === 13) {
+      if (e.keyCode === 13) { // Key ENTER leads to hilite().
         e.preventDefault();
         hilite();
       }
@@ -321,27 +302,57 @@ function main(info) {
       return;
     }
 
-    for (var rank in rankToPattern) {
-      var pattern = rankToPattern[rank];
+    for (var i in mainInfo.dirs) {
+      var baseX = info.timestamp_gutter_width + (i * (rankToPattern.length + 1));
 
-      var s = 0;
-      for (var i in terms) {
-        if (pattern.indexOf(terms[i]) >= 0) {
-          s += 1;
+      for (var rank in rankToPattern) {
+        var pattern = rankToPattern[rank];
+
+        var s = 0;
+        for (var i in terms) {
+          if (pattern.indexOf(terms[i]) >= 0) {
+            s += 1;
+          }
         }
-      }
 
-      if (s > 0) {
-        var c = 50 + Math.round(200.0 * (s / terms.length));
-        var rgb = "rgb(" + c + "," + c + ",0,0.4)";
-        hiliteCtx.fillStyle = rgb;
-        hiliteCtx.fillRect(parseInt(rank) + info.timestamp_gutter_width, 0,
-                           1, hiliteEl.height);
+        if (s > 0) {
+          var c = 50 + Math.round(200.0 * (s / terms.length));
+          hiliteCtx.fillStyle = "rgb(" + c + "," + c + ",0,0.4)";
+          hiliteCtx.fillRect(baseX + parseInt(rank), 0,
+                             1, hiliteEl.height);
+        }
       }
     }
   }
 
   window.hilite = hilite;
+  function eventDate(e) {
+    return new Date(2010, 0, 1, 0, 0,
+                    startSecondsSince2010 +
+                    rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
+  }
+
+  function filePatternAtX(offsetX) {
+    var rank = offsetX - info.timestamp_gutter_width;
+    if (rank >= 0) {
+      rank = rank % (rankToPattern.length + 1);
+
+      var v = rankToPattern[rank];
+      if (v) {
+        var c = v.indexOf(':');
+        if (c > 0) {
+          var file = v.substring(0, c);
+          var patt = v.substring(c + 1);
+
+          patt = patt.replace(/\d+>/g, '');
+          patt = patt.replace(/', '/g, ' ');
+          patt = patt.replace(/[[\]]/g, '');
+
+          return [file, patt];
+        }
+      }
+    }
+  }
 
   function rgbToInt(rgb) {
     return (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
