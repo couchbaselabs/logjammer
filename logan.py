@@ -118,7 +118,6 @@ def new_argument_parser():
     logmerge.add_path_arguments(ap)
     logmerge.add_match_arguments(ap)
     logmerge.add_timerange_arguments(ap)
-    logmerge.add_advanced_arguments(ap)
 
     return ap
 
