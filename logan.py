@@ -242,6 +242,12 @@ def scan(argv, args):
 # Need 32 hex chars for a uid pattern.
 pattern_uid = "[a-f0-9]" * 32
 
+ex_uid1 = "572527a076445ff8_6ddbfb54"
+
+pattern_uid1a = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[0]))
+
+pattern_uid1b = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[1]))
+
 # An example rev to initialize pattern_rev.
 ex_rev = \
     "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
@@ -255,8 +261,10 @@ pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 pattern_num_ish = [
     ("hex", r"0x[a-f0-9][a-f0-9]+"),
     ("hex", r"0x[A-F0-9][A-F0-9]+"),
-    ("uid", pattern_uid),
     ("rev", pattern_rev),
+    ("uid", pattern_uid),
+    ("uid", pattern_uid1a),
+    ("uid", pattern_uid1b),
     ("ymd", r"\d\d\d\d-\d\d-\d\d"),
     ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
     ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
