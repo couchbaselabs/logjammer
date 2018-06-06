@@ -86,7 +86,6 @@ def main(argv):
     if "http" in steps:
         print "\n============================================"
         http_server(argv, args)
-        return
 
 
 def new_argument_parser():
