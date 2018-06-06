@@ -203,7 +203,7 @@ function main(info) {
     msgEl.innerHTML = msg;
 
     var rgb = canvasCtx.getImageData(e.offsetX, e.offsetY, 1, 1).data;
-    if (rgb[0] >= 255 && rgb[1] >= 255 && rgb[2] >= 255) {
+    if (rgb[0] >= 250 && rgb[1] >= 250 && rgb[2] >= 250) {
       ftrEl.className = "hit";
     } else {
       ftrEl.className = "";
