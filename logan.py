@@ -75,7 +75,7 @@ def main(argv):
         plot(argv, args, scan_info)
 
         plot_info = dict(scan_info)  # Copy before modifying.
-        del plot_info["file_patterns"]
+        del plot_info["file_patterns"]  # Too big / unused for plot_info.
 
         plot_file = args.plot_prefix + ".json"
         with open(plot_file, 'w') as f:
@@ -131,6 +131,8 @@ def new_argument_parser():
 
 
 def scan(argv, args):
+    g = git_describe_long()
+
     # Scan the logs to build the pattern info's with a custom visitor.
     visitor, file_pos_term_counts, file_patterns, timestamp_info = \
         scan_patterns_visitor()
@@ -223,6 +225,7 @@ def scan(argv, args):
         print "  ", pattern_uniques[k], "-", k
 
     scan_info = {
+        "git_describe_long":           g,
         "argv":                        argv,
         "paths":                       args.path,
         "file_patterns":               file_patterns,
@@ -870,6 +873,12 @@ def remove_matching(terms, parts):
                     removed = True
                     break
     return removed
+
+
+def git_describe_long():
+    return subprocess.check_output(
+        ['git', 'describe', '--long'],
+        cwd=os.path.dirname(os.path.realpath(__file__))).strip()
 
 
 if __name__ == '__main__':
