@@ -16,29 +16,19 @@
   padding: 0 0 80px 0;
 }
 
-.barH {
+.bar {
   position: absolute;
   top: 0;
   left: 0;
   margin: 0 0 0 0;
   border: none;
   padding: 0 0 0 0;
-  height: 1px;
   background: blue;
   opacity: 0.5;
 }
 
-.barV {
-  position: absolute;
-  top: 0;
-  left: 0;
-  margin: 0 0 0 0;
-  border: none;
-  padding: 0 0 0 0;
-  width: 1px;
-  background: blue;
-  opacity: 0.5;
-}
+.barH { height: 1px; }
+.barV { width: 1px; }
 
 #ftr {
   position: fixed;
@@ -85,10 +75,10 @@
 
 <body>
   <img id="img" src="out-000.png">
-  <div id="barHL" class="barH"></div>
-  <div id="barHR" class="barH"></div>
-  <div id="barVT" class="barV"></div>
-  <div id="barVB" class="barV"></div>
+  <div id="barHL" class="bar barH"></div>
+  <div id="barHR" class="bar barH"></div>
+  <div id="barVT" class="bar barV"></div>
+  <div id="barVB" class="bar barV"></div>
   <div id="ftr">
     <div class="rhs">
       <button onclick="drill();">drill &gt;&gt;</button><br/>
