@@ -3,5 +3,4 @@
 *.png
 *.pyc
 *.tmp
-out.*
-scan.json
+out-logan*.*

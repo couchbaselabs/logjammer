@@ -20,7 +20,7 @@ examples...
 
 > logan.py cbcollect*
 
-the above emits analysis files, and an out-000.png image
+the above emits analysis files, and an out-logan-000.png image
 
 to start a web server on port 9999, using info from the previous logan run...
 

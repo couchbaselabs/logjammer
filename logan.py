@@ -52,8 +52,9 @@ def main(argv):
 
     if "load" in steps:
         print "\n============================================"
-        print "loading scan info file:", args.scan_file
-        with open(args.scan_file, 'r') as f:
+        scan_file = args.out_prefix + "-scan.json"
+        print "loading scan info file:", scan_file
+        with open(scan_file, 'r') as f:
             scan_info = json.load(f)
 
     if "scan" in steps:
@@ -63,8 +64,9 @@ def main(argv):
 
     if "save" in steps:
         print "\n============================================"
-        print "saving scan info file:", args.scan_file
-        with open(args.scan_file, 'w') as f:
+        scan_file = args.out_prefix + "-scan.json"
+        print "saving scan info file:", scan_file
+        with open(scan_file, 'w') as f:
             f.write(json.dumps(scan_info))
 
         print "wrote", args.scan_file
@@ -77,7 +79,7 @@ def main(argv):
         plot_info = dict(scan_info)  # Copy before modifying.
         del plot_info["file_patterns"]  # Too big / unused for plot_info.
 
-        plot_file = args.plot_prefix + ".json"
+        plot_file = args.out_prefix + ".json"
         with open(plot_file, 'w') as f:
             f.write(json.dumps(plot_info))
 
@@ -100,17 +102,12 @@ def new_argument_parser():
                     interactively browsed;
                     the HTTP is the port number to listen on""")
 
-    ap.add_argument('--scan-file', type=str, default="scan.json",
+    ap.add_argument('--out-prefix', type=str, default="out-logan",
                     help="""when the processing steps include
-                    'load' or 'save', the scan info will be
-                    loaded from and/or saved to this file
+                    'load', 'save' or 'plot', the persisted files
+                    will have this prefix, like $(out-prefix)-000.png,
+                    $(out-prefix).json and $(out-prefix)-scan.json
                     (default: %(default)s)""")
-
-    ap.add_argument('--plot-prefix', type=str, default="out",
-                    help="""when the processing steps include
-                    'plot', the plot images will be saved to
-                    files named like $(plot-prefix)-000.png and
-                    $(plot-prefix).json (default: %(default)s)""")
 
     ap.add_argument('--repo', type=str,
                     help="""optional directory to source code repo""")
@@ -535,7 +532,7 @@ def plot(argv, args, scan_info):
                             file_name, fill="#336")
                 y_text += height_text
 
-    p = Plotter(args.plot_prefix, width, height, on_start_image)
+    p = Plotter(args.out_prefix, width, height, on_start_image)
 
     p.start_image()
 
