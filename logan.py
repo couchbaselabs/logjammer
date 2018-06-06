@@ -30,7 +30,7 @@ max_image_height = 0  # 0 means unlimited plot image height.
 def main(argv):
     args = new_argument_parser().parse_args(argv[1:])
 
-    args.out = "/dev/null"  # For any invocations of logmerge.
+    args.out = os.devnull  # For any invocations of logmerge.
 
     args.fields = None
     args.max_entries = None

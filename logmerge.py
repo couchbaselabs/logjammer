@@ -218,7 +218,7 @@ def process(paths,
                       timestamp_prefix=timestamp_prefix, visitor=visitor,
                       wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
-    if w != sys.stdout:
+    if w and w != sys.stdout:
         w.close()
 
     if bar:
@@ -323,7 +323,10 @@ def prepare_out(out, bar):
     w = sys.stdout
 
     if out and out != '--':
-        w = open(out, 'w')
+        if out == os.devnull:
+            w = None
+        else:
+            w = open(out, 'w')
 
         if not bar:
             # When emitting to a file, display progress on stdout.
@@ -471,6 +474,9 @@ def entry_allowed(entry, re_match, re_match_not):
 
 def entry_emit(w, path, timestamp, entry,
                single_line, timestamp_prefix, text_wrapper):
+    if not w:
+        return
+
     if timestamp_prefix:
         w.write(timestamp or "0000-00-00T00:00:00")
         w.write(' ')
@@ -550,7 +556,9 @@ class NoopWriter(object):
 
     def write(self, *_): pass
 
-    def close(self): return self.w.close()
+    def close(self):
+        if self.w:
+            return self.w.close()
 
 
 if __name__ == '__main__':
