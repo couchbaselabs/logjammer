@@ -69,7 +69,7 @@ def main(argv):
         with open(scan_file, 'w') as f:
             f.write(json.dumps(scan_info))
 
-        print "wrote", args.scan_file
+        print "wrote", scan_file
 
     if "plot" in steps:
         print "\n============================================"
