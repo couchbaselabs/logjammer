@@ -443,7 +443,7 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                 return
 
             timestamp = parse_entry_timestamp(entry[0])
-            if (not end) or timestamp <= end:
+            if end and timestamp > end:
                 return
 
     while heap_entries:
