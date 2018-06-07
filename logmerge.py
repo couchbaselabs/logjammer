@@ -199,7 +199,10 @@ def process(paths,
     paths, total_size = expand_paths(paths, suffix)
 
     if not path_prefix:
-        path_prefix = os.path.commonprefix(paths)
+        if len(paths) > 1:
+            path_prefix = os.path.commonprefix(paths)
+        else:
+            path_prefix = ""
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,

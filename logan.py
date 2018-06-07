@@ -3,9 +3,10 @@
 
 import __builtin__
 import argparse
-import collections
+import copy
 import json
 import keyword
+import multiprocessing
 import os
 import re
 import subprocess
@@ -90,6 +91,8 @@ def main(argv):
         http_server(argv, args)
 
 
+arg_names = ["http", "multiprocessing", "out-prefix", "repo", "steps"]
+
 def new_argument_parser():
     ap = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
@@ -101,6 +104,12 @@ def new_argument_parser():
                     in order to allow the analysis / plot to be
                     interactively browsed;
                     the HTTP is the port number to listen on""")
+
+    ap.add_argument('--multiprocessing', type=int, default=0,
+                    help="""number of processes to use for multiprocessing;
+                    use 0 for default cpu count,
+                    use -1 to disable multiprocessing
+                     (default: %(default)s)""")
 
     ap.add_argument('--out-prefix', type=str, default="out-logan",
                     help="""when the processing steps include
@@ -129,11 +138,10 @@ def new_argument_parser():
 def scan(argv, args):
     g = git_describe_long()
 
-    # Scan the logs to build the pattern info's with a custom visitor.
-    visitor, file_patterns, timestamp_info = scan_patterns_visitor()
-
-    # Main driver of visitor callbacks is reused from logmerge.
-    logmerge.main_with_args(args, visitor=visitor)
+    if args.multiprocessing >= 0:
+        file_patterns, num_unique_timestamps = scan_multiprocessing(args)
+    else:
+        file_patterns, num_unique_timestamps = scan_worker(args)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -230,11 +238,92 @@ def scan(argv, args):
         "num_pattern_infos_base_none": num_pattern_infos_base_none,
         "pattern_ranks":               pattern_ranks,
         "first_timestamp":             first_timestamp,
-        "num_unique_timestamps":       timestamp_info.num_unique,
+        "num_unique_timestamps":       num_unique_timestamps,
         "timestamp_gutter_width":      timestamp_gutter_width
     }
 
     return scan_info
+
+
+def scan_multiprocessing(args):
+    paths, total_size = logmerge.expand_paths(args.path, args.suffix)
+
+    processes = args.multiprocessing or multiprocessing.cpu_count()
+
+    pool = multiprocessing.Pool(processes=processes)
+
+    results = pool.map(scan_multiprocessing_worker,
+                       [(path, args) for path in paths])
+
+    # Join the results.
+    file_patterns = {}
+
+    sum_unique_timestamps = 0
+    max_unique_timestamps = 0
+
+    print "len(results)", len(results)
+
+    for result in results:
+        print "  result['path']", result['path']
+        print "  len(result['file_patterns'])", len(result['file_patterns'])
+
+        for file_name, r_patterns in result["file_patterns"].iteritems():
+            print "    file_name", file_name
+            print "    len(r_patterns)", len(r_patterns)
+
+            patterns = file_patterns.get(file_name)
+            if not patterns:
+                file_patterns[file_name] = r_patterns
+            else:
+                for pattern_key, r_pattern_info in r_patterns.iteritems():
+                    pattern_info = patterns.get(pattern_key)
+                    if not pattern_info:
+                        patterns[pattern_key] = r_pattern_info
+                    else:
+                        r_ft = r_pattern_info["first_timestamp"]
+                        if pattern_info["first_timestamp"] > r_ft:
+                            pattern_info["first_timestamp"] = r_ft
+
+                        pattern_info["total"] += r_pattern_info["total"]
+
+        r_num_unique_timestamps = result["num_unique_timestamps"]
+
+        sum_unique_timestamps += r_num_unique_timestamps
+
+        if max_unique_timestamps < r_num_unique_timestamps:
+            max_unique_timestamps = r_num_unique_timestamps
+
+    # Estimate num_unique_timestamps heuristically.
+    num_unique_timestamps = 1 + int(sum_unique_timestamps / len(results))
+    if num_unique_timestamps < max_unique_timestamps:
+        num_unique_timestamps = int(max_unique_timestamps * 1.5)
+
+    return file_patterns, num_unique_timestamps
+
+
+def scan_multiprocessing_worker(path_args):
+    path, args = path_args
+
+    child_args = copy.copy(args)  # Copy to avoid mutation issues.
+    child_args.path = [path]
+
+    file_patterns, num_unique_timestamps = scan_worker(child_args)
+
+    return {
+        "path": path,
+        "file_patterns": file_patterns,
+        "num_unique_timestamps": num_unique_timestamps
+    }
+
+
+def scan_worker(args):
+    # Scan the logs to build the pattern info's with a custom visitor.
+    visitor, file_patterns, timestamp_info = scan_patterns_visitor()
+
+    # Main driver of visitor callbacks is reused from logmerge.
+    logmerge.main_with_args(args, visitor=visitor)
+
+    return file_patterns, timestamp_info.num_unique
 
 
 # Need 32 hex chars for a uid pattern.
@@ -459,7 +548,7 @@ def plot(argv, args, scan_info):
     # Sort the dir names, with any common prefix already stripped.
     paths, total_size = logmerge.expand_paths(args.path, args.suffix)
 
-    dirs, dirs_sorted = sort_dirs(paths)
+    dirs, dirs_sorted, path_prefix = sort_dirs(paths)
 
     # Initialize plotter.
     width_dir = len(pattern_ranks) + 1  # Width of a single dir.
@@ -660,7 +749,7 @@ def sort_dirs(paths):
     for i, dir in enumerate(dirs_sorted):
         dirs[dir] = i
 
-    return dirs, dirs_sorted
+    return dirs, dirs_sorted, path_prefix
 
 
 def to_rgb(v):
@@ -672,11 +761,9 @@ def to_rgb(v):
 
 
 def http_server(argv, args):
-    strip = ["--http", "--info-file", "--plot-file", "--repo", "--steps"]
-
     clean_argv = []
     for arg in argv:
-        found = [s for s in strip if arg.startswith(s)]
+        found = [s for s in arg_names if arg.startswith("--" + s)]
         if not found:
             clean_argv.append(arg)
 
