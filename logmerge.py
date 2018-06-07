@@ -49,7 +49,7 @@ def main(argv, argument_parser=None, visitor=None):
     main_with_args(args, visitor=visitor)
 
 
-def main_with_args(args, visitor=None, path_prefix=None):
+def main_with_args(args, visitor=None, path_prefix=None, bar=None):
     start, end = parse_near(args.near, args.start, args.end)
 
     process(args.path,
@@ -65,9 +65,10 @@ def main_with_args(args, visitor=None, path_prefix=None):
             timestamp_prefix=args.timestamp_prefix,
             visitor=visitor,
             wrap=args.wrap,
-            wrap_indent=args.wrap_indent)
+            wrap_indent=args.wrap_indent,
+            bar=bar)
 
-    if args.out != '--':
+    if args.out != '--' and args.out != os.devnull:
         print >>sys.stderr, "\ndone"
 
 

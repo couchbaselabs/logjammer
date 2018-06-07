@@ -20,6 +20,9 @@ import SimpleHTTPServer
 import SocketServer
 import urlparse
 
+# See progressbar2 https://github.com/WoLpH/python-progressbar
+import progressbar
+
 import logmerge
 
 
@@ -248,12 +251,35 @@ def scan(argv, args):
 def scan_multiprocessing(args):
     paths, total_size = logmerge.expand_paths(args.path, args.suffix)
 
-    processes = args.multiprocessing or multiprocessing.cpu_count()
+    q = multiprocessing.Manager().Queue(len(paths))
 
-    pool = multiprocessing.Pool(processes=processes)
+    pool_processes = args.multiprocessing or multiprocessing.cpu_count()
 
-    results = pool.map(scan_multiprocessing_worker,
-                       [(path, args) for path in paths])
+    pool = multiprocessing.Pool(processes=pool_processes)
+
+    results = pool.map_async(scan_multiprocessing_worker,
+                             [(path, args, q) for path in paths])
+
+    pool.close()
+
+    bar = progressbar.ProgressBar(max_value=total_size)
+
+    num_done = 0
+    progress = {}
+
+    while num_done < len(paths):
+        bar.update(sum(progress.itervalues()))
+
+        x = q.get()
+        if type(x) == tuple:
+            path, amount = x
+            progress[path] = amount
+        else:
+            num_done += 1
+
+    pool.join()
+
+    results = results.get()
 
     # Join the results.
     file_patterns = {}
@@ -301,13 +327,16 @@ def scan_multiprocessing(args):
     return file_patterns, num_unique_timestamps
 
 
-def scan_multiprocessing_worker(path_args):
-    path, args = path_args
+def scan_multiprocessing_worker(work):
+    path, args, q = work
 
     child_args = copy.copy(args)  # Copy to avoid mutation issues.
     child_args.path = [path]
 
-    file_patterns, num_unique_timestamps = scan_worker(child_args)
+    file_patterns, num_unique_timestamps = \
+        scan_worker(child_args, bar=QueueBar(path, q))
+
+    q.put("done", False)
 
     return {
         "path": path,
@@ -316,12 +345,12 @@ def scan_multiprocessing_worker(path_args):
     }
 
 
-def scan_worker(args):
+def scan_worker(args, bar=None):
     # Scan the logs to build the pattern info's with a custom visitor.
     visitor, file_patterns, timestamp_info = scan_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
-    logmerge.main_with_args(args, visitor=visitor)
+    logmerge.main_with_args(args, visitor=visitor, bar=bar)
 
     return file_patterns, timestamp_info.num_unique
 
@@ -955,6 +984,21 @@ def git_describe_long():
     return subprocess.check_output(
         ['git', 'describe', '--long'],
         cwd=os.path.dirname(os.path.realpath(__file__))).strip()
+
+
+class QueueBar(object):
+    def __init__(self, path, q):
+        self.path = path
+        self.q = q
+
+    def start(self, max_value=None):
+        pass  # Ignore since parent bar has an aggregate max_value.
+
+    def update(self, amount):
+        try:
+            self.q.put((self.path, amount), False)
+        except:
+            pass
 
 
 if __name__ == '__main__':
