@@ -49,10 +49,12 @@ def main(argv, argument_parser=None, visitor=None):
     main_with_args(args, visitor=visitor)
 
 
-def main_with_args(args, visitor=None):
+def main_with_args(args, visitor=None,
+                   common_prefix=None):
     start, end = parse_near(args.near, args.start, args.end)
 
     process(args.path,
+            common_prefix=common_prefix,
             fields=args.fields,
             match=args.match, match_not=args.match_not,
             max_entries=args.max_entries,
@@ -177,6 +179,7 @@ def parse_near(near, start, end):
 
 
 def process(paths,
+            common_prefix=None,       # Common prefix for all the paths.
             fields=None,              # Optional fields to parse & emit as CSV.
             match=None,
             match_not=None,
@@ -196,6 +199,9 @@ def process(paths,
     # Find log files.
     paths, total_size = expand_paths(paths, suffix)
 
+    if not common_prefix:
+        common_prefix = os.path.commonprefix(paths)
+
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start, end)
 
@@ -211,7 +217,7 @@ def process(paths,
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
     # Print heap entries until all entries are consumed.
-    emit_heap_entries(w, os.path.commonprefix(paths),
+    emit_heap_entries(w, common_prefix,
                       heap_entries, max_entries,
                       end=end, match=match, match_not=match_not,
                       single_line=single_line,
