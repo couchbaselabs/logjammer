@@ -216,7 +216,7 @@ def process(paths,
     if fields:
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
-    # Print heap entries until all entries are consumed.
+    # Emit heap entries until all entries are consumed.
     emit_heap_entries(w, path_prefix,
                       heap_entries, max_entries,
                       end=end, match=match, match_not=match_not,
