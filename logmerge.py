@@ -294,7 +294,7 @@ def prepare_heap_entries(paths, path_prefix,
         if entry:
             timestamp = parse_entry_timestamp(entry[0])
             if (not end) or timestamp <= end:
-                heap_entries.append((timestamp, entry, entry_size, r))
+                heap_entries.append([timestamp, entry, entry_size, r])
 
     heapq.heapify(heap_entries)
 
@@ -447,7 +447,9 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                 return
 
     while heap_entries:
-        timestamp, entry, entry_size, r = heapq.heappop(heap_entries)
+        heap_entry = heapq.heappop(heap_entries)
+
+        timestamp, entry, entry_size, r = heap_entry
 
         ok = emitter.emit_heap_entry(timestamp, entry, entry_size, r)
         if not ok:
@@ -458,8 +460,11 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
             timestamp = parse_entry_timestamp(entry[0])
             if (not end) or timestamp <= end:
                 if heap_entries:
-                    heapq.heappush(heap_entries,
-                                   (timestamp, entry, entry_size, r))
+                    heap_entry[0] = timestamp
+                    heap_entry[1] = entry
+                    heap_entry[2] = entry_size
+
+                    heapq.heappush(heap_entries, heap_entry)
                 else:
                     # Don't need a heap anymore and can just use a loop.
                     process_remaining_entries(timestamp, entry, entry_size, r)
