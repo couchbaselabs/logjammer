@@ -34,7 +34,7 @@ def main(argv):
 
     args.fields = None
     args.max_entries = None
-    args.max_lines_per_entry = None
+    args.max_lines_per_entry = 1  # Only need first lines for logan.
     args.single_line = None
     args.timestamp_prefix = None
     args.wrap = None
