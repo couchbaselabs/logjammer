@@ -761,31 +761,37 @@ def handle_drill(req, p, argv, repo):
 
     subprocess.call(cmd, stdout=req.wfile)
 
-    if repo and q.get("terms"):
-        req.wfile.write("\n=============================================\n")
+    req.wfile.write("\n\n=============================================\n")
 
-        terms = q.get("terms")[0].split(',')
+    if repo:
+        if q.get("terms"):
+            terms = q.get("terms")[0].split(',')
 
-        req.wfile.write("searching repo for terms: ")
-        req.wfile.write(" ".join(terms))
-        req.wfile.write("\n\n")
+            req.wfile.write("searching repo for terms: ")
+            req.wfile.write(" ".join(terms))
+            req.wfile.write("\n\n")
 
-        terms = [re.sub(re_term_disallowed, '', term) for term in terms]
-        terms = [term for term in terms if not keyword.iskeyword(term)]
-        terms = [term for term in terms if not hasattr(__builtin__, term)]
-        terms = [term for term in terms if len(term) >= 4]
+            terms = [re.sub(re_term_disallowed, '', term) for term in terms]
+            terms = [term for term in terms if not keyword.iskeyword(term)]
+            terms = [term for term in terms if not hasattr(__builtin__, term)]
+            terms = [term for term in terms if len(term) >= 4]
 
-        req.wfile.write("searching repo for terms (pre-filtered): ")
-        req.wfile.write(" ".join(terms))
-        req.wfile.write("\n\n")
+            req.wfile.write("searching repo for terms (pre-filtered): ")
+            req.wfile.write(" ".join(terms))
+            req.wfile.write("\n\n")
 
-        cmd, out = repo_grep_terms(repo, terms)
+            cmd, out = repo_grep_terms(repo, terms)
 
-        req.wfile.write("filtered ")
-        req.wfile.write(" ".join(cmd))
-        req.wfile.write("\n\n")
-        req.wfile.write(out)
-        req.wfile.write("\n")
+            req.wfile.write("filtered ")
+            req.wfile.write(" ".join(cmd))
+            req.wfile.write("\n\n")
+            req.wfile.write(out)
+            req.wfile.write("\n")
+        else:
+            req.wfile.write("(no terms for source code grep)\n\n""")
+    else:
+        req.wfile.write("(please provide --repo=</path/to/source/repo>" + \
+                        " param to logan for source code grep)\n\n""")
 
     req.wfile.close()
 
