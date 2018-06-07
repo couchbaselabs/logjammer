@@ -130,8 +130,7 @@ def scan(argv, args):
     g = git_describe_long()
 
     # Scan the logs to build the pattern info's with a custom visitor.
-    visitor, file_pos_term_counts, file_patterns, timestamp_info = \
-        scan_patterns_visitor()
+    visitor, file_patterns, timestamp_info = scan_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main_with_args(args, visitor=visitor)
@@ -295,9 +294,6 @@ timestamp_prefix_len = len(timestamp_prefix)
 
 # Scan the log files to build up pattern info's.
 def scan_patterns_visitor():
-    # Keyed by file name, value is collections.Counter.
-    file_pos_term_counts = {}
-
     # Keyed by file name, value is dict of pattern => PatternInfo.
     file_patterns = {}
 
@@ -309,13 +305,7 @@ def scan_patterns_visitor():
 
         file_name = os.path.basename(path)
 
-        pos_term_counts = file_pos_term_counts.get(file_name)
-        if pos_term_counts is None:
-            pos_term_counts = collections.Counter()
-            file_pos_term_counts[file_name] = pos_term_counts
-
-        pattern = entry_to_pattern(entry,
-                                   pos_term_counts=pos_term_counts)
+        pattern = entry_to_pattern(entry)
         if not pattern:
             return
 
@@ -340,7 +330,7 @@ def scan_patterns_visitor():
             timestamp_info.last = timestamp_bin
             timestamp_info.num_unique += 1
 
-    return v, file_pos_term_counts, file_patterns, timestamp_info
+    return v, file_patterns, timestamp_info
 
 
 class TimestampInfo:
@@ -349,7 +339,7 @@ class TimestampInfo:
         self.num_unique = 0  # Number of unique timestamp bins.
 
 
-def entry_to_pattern(entry, pos_term_counts=None):
+def entry_to_pattern(entry):
     # Only look at the first line of the entry.
     entry_first_line = entry[0].strip()
 
@@ -373,9 +363,6 @@ def entry_to_pattern(entry, pos_term_counts=None):
 
             # A "positioned term" encodes a term position with a term.
             pos_term = str(len(pattern)) + ">" + term
-
-            if pos_term_counts:
-                pos_term_counts.update([pos_term])
 
             pattern.append(pos_term)
 
@@ -544,13 +531,13 @@ def plot(argv, args, scan_info):
         if not pattern:
             return
 
-        pattern_key = str(pattern)
-
         file_name = os.path.basename(path)
 
         patterns = file_patterns.get(file_name)
         if not patterns:
             return
+
+        pattern_key = str(pattern)
 
         pattern_info = patterns[pattern_key]
 
