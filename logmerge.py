@@ -49,11 +49,11 @@ def main(argv, argument_parser=None, visitor=None):
     main_with_args(args, visitor=visitor)
 
 
-def main_with_args(args, visitor=None, common_prefix=None):
+def main_with_args(args, visitor=None, path_prefix=None):
     start, end = parse_near(args.near, args.start, args.end)
 
     process(args.path,
-            common_prefix=common_prefix,
+            path_prefix=path_prefix,
             fields=args.fields,
             match=args.match, match_not=args.match_not,
             max_entries=args.max_entries,
@@ -178,7 +178,7 @@ def parse_near(near, start, end):
 
 
 def process(paths,
-            common_prefix=None,       # Common prefix for all the paths.
+            path_prefix=None,         # Optional common prefix for all paths.
             fields=None,              # Optional fields to parse & emit as CSV.
             match=None,
             match_not=None,
@@ -198,11 +198,12 @@ def process(paths,
     # Find log files.
     paths, total_size = expand_paths(paths, suffix)
 
-    if not common_prefix:
-        common_prefix = os.path.commonprefix(paths)
+    if not path_prefix:
+        path_prefix = os.path.commonprefix(paths)
 
     # Prepare heap entry for each log file.
-    heap_entries = prepare_heap_entries(paths, max_lines_per_entry, start, end)
+    heap_entries = prepare_heap_entries(paths, path_prefix,
+                                        max_lines_per_entry, start, end)
 
     # By default, emit to stdout with no progress display.
     if not w:
@@ -216,7 +217,7 @@ def process(paths,
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
     # Print heap entries until all entries are consumed.
-    emit_heap_entries(w, common_prefix,
+    emit_heap_entries(w, path_prefix,
                       heap_entries, max_entries,
                       end=end, match=match, match_not=match_not,
                       single_line=single_line,
@@ -259,7 +260,8 @@ def expand_paths(paths, suffix):
     return rv, total_size
 
 
-def prepare_heap_entries(paths, max_lines_per_entry, start, end):
+def prepare_heap_entries(paths, path_prefix,
+                         max_lines_per_entry, start, end):
     heap_entries = []
 
     zfs = {}  # Key is path, value is zipfile.ZipFile.
@@ -278,12 +280,14 @@ def prepare_heap_entries(paths, max_lines_per_entry, start, end):
         else:
             f = open(path, 'r')
 
-        r = EntryReader(f, path, max_lines_per_entry)
+        r = EntryReader(f, path, path[len(path_prefix):],
+                        max_lines_per_entry)
 
         if start:  # Optional start timestamp.
-            seek_to_timestamp(f, path, start)
+            seek_to_timestamp(f, path, path_prefix, start)
 
-            r = EntryReader(f, path, max_lines_per_entry)
+            r = EntryReader(f, path, path[len(path_prefix):],
+                            max_lines_per_entry)
             r.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r.read()
@@ -297,7 +301,7 @@ def prepare_heap_entries(paths, max_lines_per_entry, start, end):
     return heap_entries
 
 
-def seek_to_timestamp(f, path, start_timestamp):
+def seek_to_timestamp(f, path, path_prefix, start_timestamp):
     """Binary search the log file entries for the start_timestamp,
        leaving the file at the right seek position."""
 
@@ -309,7 +313,8 @@ def seek_to_timestamp(f, path, start_timestamp):
 
         f.seek(mid)
 
-        r2 = EntryReader(f, path, 1, close_when_done=False)
+        r2 = EntryReader(f, path, path[len(path_prefix):],
+                         1, close_when_done=False)
         r2.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r2.read()
@@ -359,9 +364,9 @@ def prepare_fields_filter(fields, visitor, w):
         field_patterns.append(
             re.compile(r"\"?" + field + r"\"?[=:,]([\-\d\.]+)"))
 
-    def fields_filter(path, timestamp, entry, entry_size):
+    def fields_filter(path_short, timestamp, entry, entry_size):
         if visitor:  # Wrap the optional, input visitor.
-            visitor(path, timestamp, entry, entry_size)
+            visitor(path_short, timestamp, entry, entry_size)
 
         # Search for field_patterns in any line in the entry.
         matched = False
@@ -378,8 +383,8 @@ def prepare_fields_filter(fields, visitor, w):
 
         if matched:
             row[0] = timestamp
-            row[1] = os.path.dirname(path)
-            row[2] = os.path.basename(path)
+            row[1] = os.path.dirname(path_short)
+            row[2] = os.path.basename(path_short)
             if row[2].endswith(".log"):
                 row[2] = row[2][:-4]
 
@@ -415,13 +420,11 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                 self.i += 1
 
             if entry_allowed(entry, re_match, re_match_not):
-                path = r.path[len(path_prefix):]
-
                 if visitor:
-                    visitor(path, timestamp, entry, entry_size)
+                    visitor(r.path_short, timestamp, entry, entry_size)
 
                 if w:
-                    entry_emit(w, path, timestamp, entry,
+                    entry_emit(w, r.path_short, timestamp, entry,
                                single_line, timestamp_prefix, text_wrapper)
 
             self.e += 1
@@ -506,13 +509,13 @@ def entry_allowed(entry, re_match, re_match_not):
     return allowed
 
 
-def entry_emit(w, path, timestamp, entry,
+def entry_emit(w, path_short, timestamp, entry,
                single_line, timestamp_prefix, text_wrapper):
     if timestamp_prefix:
         w.write(timestamp or "0000-00-00T00:00:00")
         w.write(' ')
 
-    w.write(path)
+    w.write(path_short)
     w.write(' ')
 
     for line in entry:
@@ -529,9 +532,11 @@ def entry_emit(w, path, timestamp, entry,
 
 
 class EntryReader(object):
-    def __init__(self, f, path, max_lines_per_entry, close_when_done=True):
+    def __init__(self, f, path, path_short,
+                 max_lines_per_entry, close_when_done=True):
         self.f = f
         self.path = path
+        self.path_short = path_short
         self.max_lines_per_entry = max_lines_per_entry
         self.close_when_done = close_when_done
         self.last_line = None
