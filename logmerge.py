@@ -413,11 +413,8 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
             self.e = 0  # Total entries emitted.
 
         def emit_heap_entry(self, timestamp, entry, entry_size, r):
-            if bar:
-                self.n += entry_size
-                if self.i % 2000 == 0:
-                    bar.update(self.n)
-                self.i += 1
+            self.i += 1
+            self.n += entry_size
 
             if entry_allowed(entry, re_match, re_match_not):
                 if visitor:
@@ -427,9 +424,12 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                     entry_emit(w, r.path_short, timestamp, entry,
                                single_line, timestamp_prefix, text_wrapper)
 
-            self.e += 1
-            if max_entries and self.e > max_entries:
-                return False
+                self.e += 1
+                if max_entries and self.e > max_entries:
+                    return False
+
+            if bar and self.i % 2000 == 0:
+                bar.update(self.n)
 
             return True
 
