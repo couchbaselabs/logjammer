@@ -49,8 +49,7 @@ def main(argv, argument_parser=None, visitor=None):
     main_with_args(args, visitor=visitor)
 
 
-def main_with_args(args, visitor=None,
-                   common_prefix=None):
+def main_with_args(args, visitor=None, common_prefix=None):
     start, end = parse_near(args.near, args.start, args.end)
 
     process(args.path,
@@ -402,36 +401,65 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
 
     text_wrapper = prepare_text_wrapper(wrap, wrap_indent)
 
-    i = 0  # Total entries seen so far.
-    n = 0  # Total bytes of lines seen so far.
-    e = 0  # Total entries emitted.
+    class Emitter(object):
+        def __init__(self):
+            self.i = 0  # Total entries seen so far.
+            self.n = 0  # Total bytes of lines seen so far.
+            self.e = 0  # Total entries emitted.
+
+        def emit_heap_entry(self, timestamp, entry, entry_size, r):
+            if bar:
+                self.n += entry_size
+                if self.i % 2000 == 0:
+                    bar.update(self.n)
+                self.i += 1
+
+            if entry_allowed(entry, re_match, re_match_not):
+                path = r.path[len(path_prefix):]
+
+                if visitor:
+                    visitor(path, timestamp, entry, entry_size)
+
+                if w:
+                    entry_emit(w, path, timestamp, entry,
+                               single_line, timestamp_prefix, text_wrapper)
+
+            self.e += 1
+            if max_entries and self.e > max_entries:
+                return False
+
+            return True
+
+    emitter = Emitter()
+
+    def process_remaining_entries(timestamp, entry, entry_size, r):
+        # Use a direct loop instead of a heap when only a single r left.
+        while emitter.emit_heap_entry(timestamp, entry, entry_size, r):
+            entry, entry_size = r.read()
+            if not entry:
+                return
+
+            timestamp = parse_entry_timestamp(entry[0])
+            if (not end) or timestamp <= end:
+                return
 
     while heap_entries:
         timestamp, entry, entry_size, r = heapq.heappop(heap_entries)
 
-        if bar:
-            n += entry_size
-            if i % 2000 == 0:
-                bar.update(n)
-            i += 1
-
-        if entry_allowed(entry, re_match, re_match_not):
-            path = r.path[len(path_prefix):]
-
-            if visitor:
-                visitor(path, timestamp, entry, entry_size)
-
-            entry_emit(w, path, timestamp, entry,
-                       single_line, timestamp_prefix, text_wrapper)
-            e += 1
-            if max_entries and e > max_entries:
-                return
+        ok = emitter.emit_heap_entry(timestamp, entry, entry_size, r)
+        if not ok:
+            return
 
         entry, entry_size = r.read()
         if entry:
             timestamp = parse_entry_timestamp(entry[0])
             if (not end) or timestamp <= end:
-                heapq.heappush(heap_entries, (timestamp, entry, entry_size, r))
+                if heap_entries:
+                    heapq.heappush(heap_entries,
+                                   (timestamp, entry, entry_size, r))
+                else:
+                    # Don't need a heap anymore and can just use a loop.
+                    process_remaining_entries(timestamp, entry, entry_size, r)
 
 
 def prepare_text_wrapper(wrap, wrap_indent):
@@ -480,9 +508,6 @@ def entry_allowed(entry, re_match, re_match_not):
 
 def entry_emit(w, path, timestamp, entry,
                single_line, timestamp_prefix, text_wrapper):
-    if not w:
-        return
-
     if timestamp_prefix:
         w.write(timestamp or "0000-00-00T00:00:00")
         w.write(' ')

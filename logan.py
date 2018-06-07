@@ -790,8 +790,8 @@ def handle_drill(req, p, argv, repo):
         else:
             req.wfile.write("(no terms for source code grep)\n\n""")
     else:
-        req.wfile.write("(please provide --repo=</path/to/source/repo>" + \
-                        " param to logan for source code grep)\n\n""")
+        req.wfile.write("(please provide --repo=/path/to/source/repo" +
+                        " for source code grep)\n\n""")
 
     req.wfile.close()
 
