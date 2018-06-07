@@ -576,6 +576,10 @@ def plot(argv, args, scan_info):
     first_timestamp = scan_info["first_timestamp"]
     num_unique_timestamps = scan_info["num_unique_timestamps"]
 
+    if not (file_patterns and pattern_ranks and
+            first_timestamp and num_unique_timestamps):
+        return
+
     # Sort the dir names, with any common prefix already stripped.
     paths, total_size = logmerge.expand_paths(args.path, args.suffix)
 
