@@ -79,11 +79,9 @@ def add_arguments(ap):
                     a progress bar is shown instead on stdout""")
 
     add_path_arguments(ap)
-
     add_match_arguments(ap)
-
-    add_timerange_arguments(ap)
-
+    add_time_range_arguments(ap)
+    add_scan_range_arguments(ap)
     add_advanced_arguments(ap)
 
     return ap
@@ -110,7 +108,7 @@ def add_match_arguments(ap):
                    regexp will be emitted""")
 
 
-def add_timerange_arguments(ap):
+def add_time_range_arguments(ap):
     g = ap.add_argument_group('time range arguments',
                               'filtering of log entries by time range')
     g.add_argument('--start', type=str,
@@ -125,6 +123,16 @@ def add_timerange_arguments(ap):
                    arguments, like YYYY-MM-DDThh:mm:ss[+/-MINUTES],
                    where the optional MINUTES defaults to 1 minute;
                    example: 2018-01-31T17:15:00+/-10""")
+
+
+def add_scan_range_arguments(ap):
+    g = ap.add_argument_group('scan range arguments',
+                              'scan only in this byte range')
+    g.add_argument('--scan-start', type=int,
+                   help="""emit only entries that come at or after this
+                   seek position""")
+    g.add_argument('--scan-length', type=int,
+                   help="""scan these many bytes max""")
 
 
 def add_advanced_arguments(ap):

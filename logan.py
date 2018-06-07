@@ -96,6 +96,7 @@ def main(argv):
 
 arg_names = ["http", "multiprocessing", "out-prefix", "repo", "steps"]
 
+
 def new_argument_parser():
     ap = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
@@ -133,7 +134,8 @@ def new_argument_parser():
 
     logmerge.add_path_arguments(ap)
     logmerge.add_match_arguments(ap)
-    logmerge.add_timerange_arguments(ap)
+    logmerge.add_time_range_arguments(ap)
+    logmerge.add_scan_range_arguments(ap)
 
     return ap
 
@@ -995,10 +997,7 @@ class QueueBar(object):
         pass  # Ignore since parent bar has an aggregate max_value.
 
     def update(self, amount):
-        try:
-            self.q.put((self.path, amount), False)
-        except:
-            pass
+        self.q.put((self.path, amount), False)
 
 
 if __name__ == '__main__':
