@@ -54,9 +54,11 @@ def main(argv):
     if (args.steps is None):
         args.steps = "scan,save,plot"
 
-    steps = args.steps.split(",")
+    main_steps(argv, args)
 
-    scan_info = None
+
+def main_steps(argv, args, scan_info=None):
+    steps = args.steps.split(",")
 
     if "load" in steps:
         print "\n============================================"
