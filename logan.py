@@ -614,22 +614,6 @@ def mark_similar_pattern_info_pair(new, old):
         return True
 
 
-def chunkify_path_sizes(path_sizes, default_chunk_size):
-    chunks = []
-
-    for path, size in path_sizes.iteritems():
-        chunk_size = default_chunk_size or size
-
-        x = 0
-        while size and x < size and chunk_size:
-            chunks.append((path, x, chunk_size))
-            x += chunk_size
-
-    chunks.sort()
-
-    return chunks
-
-
 # Scan the log entries, plotting them based on the given scan info.
 def plot(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
@@ -835,6 +819,14 @@ class Plotter(object):
         return cur_timestamp_changed, cur_im_changed
 
 
+def to_rgb(v):
+    b = v & 255
+    g = (v >> 8) & 255
+    r = (v >> 16) & 255
+
+    return (r, g, b)
+
+
 def sort_dirs(paths):
     path_prefix = os.path.commonprefix(paths)  # Strip common prefix.
 
@@ -851,12 +843,20 @@ def sort_dirs(paths):
     return dirs, dirs_sorted, path_prefix
 
 
-def to_rgb(v):
-    b = v & 255
-    g = (v >> 8) & 255
-    r = (v >> 16) & 255
+def chunkify_path_sizes(path_sizes, default_chunk_size):
+    chunks = []
 
-    return (r, g, b)
+    for path, size in path_sizes.iteritems():
+        chunk_size = default_chunk_size or size
+
+        x = 0
+        while size and x < size and chunk_size:
+            chunks.append((path, x, chunk_size))
+            x += chunk_size
+
+    chunks.sort()
+
+    return chunks
 
 
 def http_server(argv, args):
@@ -1056,13 +1056,15 @@ def git_describe_long():
         cwd=os.path.dirname(os.path.realpath(__file__))).strip()
 
 
+# QueueBar implements a subset of progress bar methods, forwarding
+# update() invocations to a queue.
 class QueueBar(object):
     def __init__(self, chunk, q):
         self.chunk = chunk
         self.q = q
 
     def start(self, max_value=None):
-        pass  # Ignore since parent bar has an aggregate max_value.
+        pass  # Ignore since parent has an aggregate max_value.
 
     def update(self, amount):
         self.q.put((self.chunk, amount), False)
