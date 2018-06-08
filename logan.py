@@ -310,8 +310,7 @@ def scan_multiprocessing_wait(q, num_chunks, total_size):
 def scan_multiprocessing_join(results):
     file_patterns = {}
 
-    sum_unique_timestamps = 0
-    max_unique_timestamps = 0
+    path_unique_timestamps = {}
 
     for result in results:
         for file_name, r_patterns in result["file_patterns"].iteritems():
@@ -330,17 +329,19 @@ def scan_multiprocessing_join(results):
 
                         pattern_info["total"] += r_pattern_info["total"]
 
-        r_num_unique_timestamps = result["num_unique_timestamps"]
+        path = result["path"]
+        path_unique_timestamps[path] = \
+            path_unique_timestamps.get(path, 0) + \
+            result["num_unique_timestamps"]
 
-        sum_unique_timestamps += r_num_unique_timestamps
+    # Estimate the overall num_unique_timestamps heuristically.
+    sum_unique_timestamps = sum(path_unique_timestamps.itervalues())
 
-        if max_unique_timestamps < r_num_unique_timestamps:
-            max_unique_timestamps = r_num_unique_timestamps
+    max_unique_timestamps = max(path_unique_timestamps.itervalues())
 
-    # Estimate num_unique_timestamps heuristically.
-    num_unique_timestamps = 1 + int(sum_unique_timestamps / len(results))
-    if num_unique_timestamps < max_unique_timestamps:
-        num_unique_timestamps = int(max_unique_timestamps * 1.5)
+    num_unique_timestamps = max(int(sum_unique_timestamps /
+                                    len(path_unique_timestamps)) + 1,
+                                int(max_unique_timestamps * 1.5))
 
     return file_patterns, num_unique_timestamps
 
