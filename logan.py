@@ -39,6 +39,8 @@ def main(argv):
     args.fields = None
     args.max_entries = None
     args.max_lines_per_entry = 0.5  # Only need first lines for logan.
+    args.scan_start=None
+    args.scan_length=None
     args.single_line = None
     args.timestamp_prefix = None
     args.wrap = None
@@ -135,7 +137,6 @@ def new_argument_parser():
     logmerge.add_path_arguments(ap)
     logmerge.add_match_arguments(ap)
     logmerge.add_time_range_arguments(ap)
-    logmerge.add_scan_range_arguments(ap)
 
     return ap
 
