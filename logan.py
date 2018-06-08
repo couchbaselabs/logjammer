@@ -106,11 +106,10 @@ def new_argument_parser():
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
-    ap.add_argument('--chunk-size', type=int, default=10*1024*1024,
+    ap.add_argument('--chunk-size', type=int, default=10,
                     help="""split large log files into smaller chunks
-                    of these many bytes when multiprocessing;
-                    use 0 for no chunking
-                    (default: %(default)s)""")
+                    (in MB) when multiprocessing; use 0 for no chunking
+                    (default: %(default)s MB)""")
 
     ap.add_argument('--http', type=str,
                     help="""when specified, this option overrides
@@ -265,7 +264,8 @@ def scan_multiprocessing(args):
     paths, total_size, path_sizes = \
         logmerge.expand_paths(args.path, args.suffix)
 
-    chunks = chunkify_path_sizes(path_sizes, args.chunk_size)
+    chunks = chunkify_path_sizes(path_sizes,
+                                 (args.chunk_size or 0) * 1024 * 1024)
 
     q = multiprocessing.Manager().Queue()
 
