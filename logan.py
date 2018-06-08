@@ -9,6 +9,7 @@ import keyword
 import multiprocessing
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -259,6 +260,8 @@ def scan(argv, args):
 
 
 def scan_multiprocessing(args):
+    signal.signal(signal.SIGINT, on_sigint)
+
     paths, total_size, path_sizes = \
         logmerge.expand_paths(args.path, args.suffix)
 
@@ -1035,6 +1038,11 @@ class QueueBar(object):
 
     def update(self, amount):
         self.q.put((self.chunk, amount), False)
+
+
+def on_sigint(signum, frame):
+    print("SIGINT received")
+    os._exit(1)
 
 
 if __name__ == '__main__':
