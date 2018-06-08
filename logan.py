@@ -120,7 +120,7 @@ def main_steps(argv, args, scan_info=None):
         scan_file = args.out_prefix + "-scan.json"
         print "loading scan info file:", scan_file
         with open(scan_file, 'r') as f:
-            scan_info = json.load(f)
+            scan_info = json.load(f, object_hook=byteify)
 
     if "scan" in steps:
         print "\n============================================"
@@ -132,9 +132,9 @@ def main_steps(argv, args, scan_info=None):
         scan_file = args.out_prefix + "-scan.json"
         print "saving scan info file:", scan_file
         with open(scan_file, 'w') as f:
-            f.write(json.dumps(scan_info))
+            json.dump(scan_info, f, separators=(',', ':'))
 
-        print "wrote", scan_file
+        print "\nwrote", scan_file
 
     if "plot" in steps:
         print "\n============================================"
@@ -1097,6 +1097,24 @@ class QueueBar(object):
 
     def update(self, amount):
         self.q.put((self.chunk, amount), False)
+
+
+# See: https://stackoverflow.com/questions/956867/
+#      how-to-get-string-objects-instead-of-unicode-from-json
+def byteify(data, ignore_dicts=False):
+    if isinstance(data, unicode):
+        return data.encode('utf-8')
+
+    if isinstance(data, list):
+        return [byteify(item, ignore_dicts=True) for item in data]
+
+    if isinstance(data, dict) and not ignore_dicts:
+        return {
+            byteify(key, ignore_dicts=True): byteify(value, ignore_dicts=True)
+            for key, value in data.iteritems()
+        }
+
+    return data
 
 
 def on_sigint(signum, frame):
