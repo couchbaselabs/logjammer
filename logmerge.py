@@ -316,6 +316,7 @@ def prepare_heap_entries(paths, path_prefix,
 
             r = EntryReader(f, path, path[len(path_prefix):],
                             max_lines_per_entry, scan_length)
+
             r.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r.read()
@@ -593,18 +594,22 @@ class EntryReader(object):
 
         if self.last_line:
             entry.append(self.last_line)
+
             entry_size += len(self.last_line)
+            self.last_line = None
 
-        while self.f and ((not self.max_bytes) or
-                          (self.num_bytes < self.max_bytes)):
+        while self.f:
+            if self.max_bytes and self.num_bytes > self.max_bytes:
+                return entry, entry_size
+
             self.last_line = self.f.readline()
-            self.num_bytes += len(self.last_line)
-
-            if self.last_line == "":
+            if not self.last_line:
                 if self.close_when_done:
                     self.f.close()
                 self.f = None
                 return entry, entry_size
+
+            self.num_bytes += len(self.last_line)
 
             if parse_entry_timestamp(self.last_line):
                 return entry, entry_size
@@ -617,6 +622,7 @@ class EntryReader(object):
                 entry.append(" ...CLIPPED...\n")
 
             entry_size += len(self.last_line)
+            self.last_line = None
 
         return None, 0
 
