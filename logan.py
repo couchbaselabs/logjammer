@@ -265,12 +265,20 @@ def scan_multiprocessing(args):
 
     pool.close()
 
+    scan_multiprocessing_wait(q, len(paths), total_size)
+
+    pool.join()
+
+    return scan_multiprocessing_join(results.get())
+
+
+def scan_multiprocessing_wait(q, num_results, total_size):
     bar = progressbar.ProgressBar(max_value=total_size)
 
     num_done = 0
     progress = {}
 
-    while num_done < len(paths):
+    while num_done < num_results:
         bar.update(sum(progress.itervalues()))
 
         x = q.get()
@@ -280,11 +288,8 @@ def scan_multiprocessing(args):
         else:
             num_done += 1
 
-    pool.join()
 
-    results = results.get()
-
-    # Join the results.
+def scan_multiprocessing_join(results):
     file_patterns = {}
 
     sum_unique_timestamps = 0
