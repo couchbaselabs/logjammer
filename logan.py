@@ -351,8 +351,24 @@ def scan_multiprocessing_worker(work):
     child_args.scan_start = scan_start
     child_args.scan_length = scan_length
 
-    file_patterns, num_unique_timestamps = \
-        scan_worker(child_args, bar=QueueBar(chunk, q))
+    patterns = {}
+
+    timestamp_info = TimestampInfo()
+
+    # Callback that assumes we only have one path.
+    def v(path, timestamp, entry, entry_size):
+        if (not timestamp) or (not entry):
+            return
+
+        update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
+
+    # Main driver of visitor callbacks is reused from logmerge.
+    logmerge.main_with_args(child_args, visitor=v, bar=QueueBar(chunk, q))
+
+    file_patterns = {}
+
+    if patterns:
+        file_patterns[os.path.basename(path)] = patterns
 
     q.put("done", False)
 
@@ -360,7 +376,7 @@ def scan_multiprocessing_worker(work):
         "path": path,
         "chunk": chunk,
         "file_patterns": file_patterns,
-        "num_unique_timestamps": num_unique_timestamps
+        "num_unique_timestamps": timestamp_info.num_unique
     }
 
 
@@ -445,7 +461,7 @@ timestamp_prefix = "YYYY-MM-DDTHH:MM:SS"
 timestamp_prefix_len = len(timestamp_prefix)
 
 
-# Scan the log files to build up pattern info's.
+# Returns a visitor that can categorize entries from different paths.
 def scan_patterns_visitor():
     # Keyed by file name, value is dict of pattern => PatternInfo.
     file_patterns = {}
@@ -458,32 +474,37 @@ def scan_patterns_visitor():
 
         file_name = os.path.basename(path)
 
-        pattern = entry_to_pattern(entry)
-        if not pattern:
-            return
-
         # Register into patterns dict if it's a brand new pattern.
         patterns = file_patterns.get(file_name)
         if patterns is None:
             patterns = {}
             file_patterns[file_name] = patterns
 
-        pattern_key = str(pattern)
-
-        pattern_info = patterns.get(pattern_key)
-        if not pattern_info:
-            pattern_info = make_pattern_info(pattern, timestamp)
-            patterns[pattern_key] = pattern_info
-
-        # Increment the total count of instances of this pattern.
-        pattern_info["total"] += 1
-
-        timestamp_bin = timestamp[:timestamp_prefix_len]
-        if timestamp_info.last != timestamp_bin:
-            timestamp_info.last = timestamp_bin
-            timestamp_info.num_unique += 1
+        update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
 
     return v, file_patterns, timestamp_info
+
+
+# Updates the patterns dict with the timestamp / entry.
+def update_patterns_with_entry(patterns, timestamp, entry, timestamp_info):
+    pattern = entry_to_pattern(entry)
+    if not pattern:
+        return
+
+    pattern_key = str(pattern)
+
+    pattern_info = patterns.get(pattern_key)
+    if not pattern_info:
+        pattern_info = make_pattern_info(pattern, timestamp)
+        patterns[pattern_key] = pattern_info
+
+    # Increment the total count of instances of this pattern.
+    pattern_info["total"] += 1
+
+    timestamp_bin = timestamp[:timestamp_prefix_len]
+    if timestamp_info.last != timestamp_bin:
+        timestamp_info.last = timestamp_bin
+        timestamp_info.num_unique += 1
 
 
 class TimestampInfo:

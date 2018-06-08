@@ -508,6 +508,7 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
 
     return emitter.n
 
+
 def prepare_text_wrapper(wrap, wrap_indent):
     if not wrap:
         return None
