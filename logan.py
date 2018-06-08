@@ -154,8 +154,6 @@ def main_steps(argv, args, scan_info=None):
 
 
 def scan(argv, args):
-    g = git_describe_long()
-
     if args.multiprocessing >= 0:
         file_patterns, num_unique_timestamps = scan_multiprocessing(args)
     else:
@@ -174,9 +172,9 @@ def scan(argv, args):
     num_pattern_infos_base = 0
     num_pattern_infos_base_none = 0
 
-    # For categorizing the unique "file_name: pattern_key"'s when
-    # shared pattern_base's are also considered.  The value is the
-    # total number of entries seen.
+    # Categorize the unique "file_name: pattern_key"'s, also
+    # considering shared pattern_base's.  The value is the total
+    # number of entries seen.
     pattern_uniques = {}
 
     first_timestamp = None
@@ -210,8 +208,7 @@ def scan(argv, args):
             k = file_name + ": " + pattern_key
 
             pattern_uniques[k] = \
-                pattern_uniques.get(k, 0) + \
-                pattern_info_total
+                pattern_uniques.get(k, 0) + pattern_info_total
 
             if (not first_timestamp) or \
                (first_timestamp > pattern_info["first_timestamp"]):
@@ -246,7 +243,7 @@ def scan(argv, args):
         print "  ", pattern_uniques[k], "-", k
 
     scan_info = {
-        "git_describe_long":           g,
+        "git_describe_long":           git_describe_long(),
         "argv":                        argv,
         "paths":                       args.path,
         "file_patterns":               file_patterns,
