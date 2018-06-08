@@ -61,6 +61,8 @@ def main_with_args(args, visitor=None, path_prefix=None, bar=None):
             out=args.out,
             single_line=args.single_line,
             start=start, end=end,
+            scan_start=args.scan_start,
+            scan_length=args.scan_length,
             suffix=args.suffix,
             timestamp_prefix=args.timestamp_prefix,
             visitor=visitor,
@@ -197,6 +199,8 @@ def process(paths,
             single_line=False,        # dict[path] => initial seek() positions.
             start=None,               # Start timestamp for binary search.
             end=None,                 # End timestamp for filtering.
+            scan_start=None,          # Optional scan seek start byte.
+            scan_length=None,         # Optional scan max number of bytes.
             suffix="log",             # Suffix used with directory glob'ing.
             timestamp_prefix=False,   # Emit normalized timestamp prefix.
             visitor=None,             # Optional entry visitor callback.
@@ -215,6 +219,7 @@ def process(paths,
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,
+                                        scan_start, scan_length,
                                         max_lines_per_entry, start, end)
 
     # By default, emit to stdout with no progress display.
@@ -273,6 +278,7 @@ def expand_paths(paths, suffix):
 
 
 def prepare_heap_entries(paths, path_prefix,
+                         scan_start, scan_length,
                          max_lines_per_entry, start, end):
     heap_entries = []
 
@@ -292,14 +298,19 @@ def prepare_heap_entries(paths, path_prefix,
         else:
             f = open(path, 'r')
 
+        scan_start = scan_start or 0
+        if scan_start:
+            f.seek(scan_start)
+
         r = EntryReader(f, path, path[len(path_prefix):],
-                        max_lines_per_entry)
+                        max_lines_per_entry, scan_length)
 
         if start:  # Optional start timestamp.
-            seek_to_timestamp(f, path, path_prefix, start)
+            scan_length = seek_to_timestamp(f, path, path_prefix,
+                                            scan_start, scan_length, start)
 
             r = EntryReader(f, path, path[len(path_prefix):],
-                            max_lines_per_entry)
+                            max_lines_per_entry, scan_length)
             r.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r.read()
@@ -313,12 +324,18 @@ def prepare_heap_entries(paths, path_prefix,
     return heap_entries
 
 
-def seek_to_timestamp(f, path, path_prefix, start_timestamp):
+def seek_to_timestamp(f, path, path_prefix,
+                      scan_start, scan_length, start_timestamp):
     """Binary search the log file entries for the start_timestamp,
        leaving the file at the right seek position."""
 
-    i = 0
+    i = scan_start
+
     j = os.path.getsize(path)
+    if scan_length and i + scan_length < j:
+        j = i + scan_length
+
+    j_start = j
 
     while i < j:
         mid = int((i + j) / 2)
@@ -326,7 +343,7 @@ def seek_to_timestamp(f, path, path_prefix, start_timestamp):
         f.seek(mid)
 
         r2 = EntryReader(f, path, path[len(path_prefix):],
-                         1, close_when_done=False)
+                         1, scan_length, close_when_done=False)
         r2.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r2.read()
@@ -339,6 +356,8 @@ def seek_to_timestamp(f, path, path_prefix, start_timestamp):
             i = j
 
     f.seek(i)
+
+    return j_start - i
 
 
 def prepare_out(out, bar):
@@ -550,13 +569,15 @@ def entry_emit(w, path_short, timestamp, entry,
 
 class EntryReader(object):
     def __init__(self, f, path, path_short,
-                 max_lines_per_entry, close_when_done=True):
+                 max_lines_per_entry, max_bytes, close_when_done=True):
         self.f = f
         self.path = path
         self.path_short = path_short
         self.max_lines_per_entry = max_lines_per_entry
+        self.max_bytes = max_bytes,
         self.close_when_done = close_when_done
         self.last_line = None
+        self.num_bytes = 0
 
     def read(self):
         """Read lines from the file until we see the next entry"""
@@ -568,8 +589,11 @@ class EntryReader(object):
             entry.append(self.last_line)
             entry_size += len(self.last_line)
 
-        while self.f:
+        while self.f and ((not self.max_bytes) or
+                          (self.num_bytes < self.max_bytes)):
             self.last_line = self.f.readline()
+            self.num_bytes += len(self.last_line)
+
             if self.last_line == "":
                 if self.close_when_done:
                     self.f.close()
