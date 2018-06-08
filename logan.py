@@ -673,7 +673,9 @@ def plot(argv, args, scan_info):
         if rank is None:
             return
 
-        rank_dir = dirs[os.path.dirname(path)]
+        rank_dir = dirs.get(os.path.dirname(path))
+        if rank_dir is None:
+            return
 
         x = (rank_dir * width_dir) + rank
 
