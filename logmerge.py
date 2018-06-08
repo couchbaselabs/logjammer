@@ -209,7 +209,7 @@ def process(paths,
             w=None,                   # Optional output stream.
             bar=None):                # Optional progress bar.
     # Find log files.
-    paths, total_size = expand_paths(paths, suffix)
+    paths, total_size, path_sizes = expand_paths(paths, suffix)
 
     if not path_prefix:
         if len(paths) > 1:
@@ -259,22 +259,25 @@ def expand_paths(paths, suffix):
             globbed.append(path)
 
     rv = []
-
     total_size = 0
+    path_sizes = {}
 
     for path in globbed:
         if path.endswith(".zip"):
             zf = zipfile.ZipFile(path, 'r')
             for info in zf.infolist():
-                rv.append(path + "/" + info.filename)
+                path = path + "/" + info.filename
+                rv.append(path)
+                path_sizes[path] = info.file_size
                 total_size += info.file_size
         else:
             rv.append(path)
-            total_size += os.path.getsize(path)
+            path_sizes[path] = os.path.getsize(path)
+            total_size += path_sizes[path]
 
     rv.sort()
 
-    return rv, total_size
+    return rv, total_size, path_sizes
 
 
 def prepare_heap_entries(paths, path_prefix,

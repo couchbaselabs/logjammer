@@ -39,8 +39,8 @@ def main(argv):
     args.fields = None
     args.max_entries = None
     args.max_lines_per_entry = 0.5  # Only need first lines for logan.
-    args.scan_start=None
-    args.scan_length=None
+    args.scan_start = None
+    args.scan_length = None
     args.single_line = None
     args.timestamp_prefix = None
     args.wrap = None
@@ -252,7 +252,8 @@ def scan(argv, args):
 
 
 def scan_multiprocessing(args):
-    paths, total_size = logmerge.expand_paths(args.path, args.suffix)
+    paths, total_size, path_sizes = \
+        logmerge.expand_paths(args.path, args.suffix)
 
     q = multiprocessing.Manager().Queue(len(paths))
 
@@ -260,8 +261,9 @@ def scan_multiprocessing(args):
 
     pool = multiprocessing.Pool(processes=pool_processes)
 
-    results = pool.map_async(scan_multiprocessing_worker,
-                             [(path, args, q) for path in paths])
+    results = pool.map_async(
+        scan_multiprocessing_worker,
+        [(path, args, q) for i, path in enumerate(paths)])
 
     pool.close()
 
@@ -587,7 +589,8 @@ def plot(argv, args, scan_info):
         return
 
     # Sort the dir names, with any common prefix already stripped.
-    paths, total_size = logmerge.expand_paths(args.path, args.suffix)
+    paths, total_size, path_sizes = \
+        logmerge.expand_paths(args.path, args.suffix)
 
     dirs, dirs_sorted, path_prefix = sort_dirs(paths)
 
