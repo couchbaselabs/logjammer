@@ -22,6 +22,7 @@ import SocketServer
 import urlparse
 
 # See progressbar2 https://github.com/WoLpH/python-progressbar
+# Ex: pip install progressbar2
 import progressbar
 
 import logmerge
