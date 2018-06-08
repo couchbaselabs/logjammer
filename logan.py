@@ -36,8 +36,8 @@ max_image_height = 0  # 0 means unlimited plot image height.
 def main(argv):
     args = new_argument_parser().parse_args(argv[1:])
 
-    args.out = os.devnull  # For any invocations of logmerge.
-
+    # Since logan invokes logmerge, setup args needed by logmerge.
+    args.out = os.devnull
     args.fields = None
     args.max_entries = None
     args.max_lines_per_entry = 0.5  # Only need first lines for logan.
@@ -98,6 +98,7 @@ def main(argv):
         http_server(argv, args)
 
 
+# These are args known by logan but not by logmerge.
 arg_names = ["chunk-size", "http", "multiprocessing",
              "out-prefix", "repo", "steps"]
 
