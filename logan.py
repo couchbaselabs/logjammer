@@ -334,10 +334,6 @@ def scan_multiprocessing_worker(work):
 
     path, scan_start, scan_length = chunk
 
-    args.path = [path]
-    args.scan_start = scan_start
-    args.scan_length = scan_length
-
     patterns = {}
 
     timestamp_info = TimestampInfo()
@@ -350,6 +346,10 @@ def scan_multiprocessing_worker(work):
         update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
 
     # Main driver of visitor callbacks is reused from logmerge.
+    args.path = [path]
+    args.scan_start = scan_start
+    args.scan_length = scan_length
+
     logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
 
     file_patterns = {}
