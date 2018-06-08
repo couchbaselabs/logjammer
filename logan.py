@@ -288,8 +288,8 @@ def scan_multiprocessing(args):
     return scan_multiprocessing_join(results.get())
 
 
-# Used by the parent to wait until there are enough done worker
-# messages from the queue, also keeping a progress bar updated.
+# Allows the parent process to wait until there are enough done worker
+# messages, while also keeping a progress bar updated.
 def scan_multiprocessing_wait(q, num_chunks, total_size):
     bar = progressbar.ProgressBar(max_value=total_size)
 
