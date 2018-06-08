@@ -7,6 +7,7 @@ import json
 import keyword
 import multiprocessing
 import os
+import pickle
 import re
 import signal
 import subprocess
@@ -148,7 +149,7 @@ def main_steps(argv, args, scan_info=None):
         with open(plot_file, 'w') as f:
             f.write(json.dumps(plot_info))
 
-        print "wrote", plot_file
+        print "\nwrote", plot_file
 
     if "http" in steps:
         print "\n============================================"
@@ -352,6 +353,10 @@ def scan_multiprocessing_worker(work):
             return
 
         update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
+
+    args.path = [path]
+    args.scan_start = scan_start
+    args.scan_length = scan_length
 
     # Main driver of visitor callbacks is reused from logmerge.
     args.path = [path]
@@ -642,11 +647,6 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the given scan info.
 def plot(argv, args, scan_info):
-    plot_scan_info(argv, args, scan_info)
-
-
-# Single-threaded plot of the scan_info.
-def plot_scan_info(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     first_timestamp = scan_info["first_timestamp"]
@@ -656,15 +656,117 @@ def plot_scan_info(argv, args, scan_info):
             first_timestamp and timestamps_num_unique):
         return
 
+    if False and args.multiprocessing >= 0:
+        plot_multiprocessing_scan_info(args, scan_info)
+    else:
+        plot_scan_info(args, scan_info)
+
+
+# Plot of the scan_info using multiprocessing.
+def plot_multiprocessing_scan_info(args, scan_info):
+    paths, total_size, path_sizes = \
+        logmerge.expand_paths(args.path, args.suffix)
+
+    chunks = chunkify_path_sizes(path_sizes,
+                                 (args.chunk_size or 0) * 1024 * 1024)
+
+    q = multiprocessing.Manager().Queue()
+
+    pool_processes = args.multiprocessing or multiprocessing.cpu_count()
+
+    pool = multiprocessing.Pool(processes=pool_processes)
+
+    scan_info_pickle = pickle.dumps(scan_info)
+
+    results = pool.map_async(
+        plot_multiprocessing_worker,
+        [(chunk, args, q, scan_info_pickle) for chunk in chunks])
+
+    pool.close()
+
+    multiprocessing_wait(q, len(chunks), total_size)
+
+    pool.join()
+
+    return plot_multiprocessing_join(results.get())
+
+
+# Worker that plots a single chunk.
+def plot_multiprocessing_worker(work):
+    chunk, args, q, scan_info_pickle = work
+
+    path, scan_start, scan_length = chunk
+
+    chunk_out_prefix = args.out_prefix + "-chunk-" + \
+        path.replace("/", "_") + "-" + \
+        str(scan_start) + "-" + str(scan_length)
+
+    scan_info = pickle.loads(scan_info_pickle)
+
+    file_name = os.path.basename(path)
+
+    patterns = scan_info["file_patterns"].get(file_name)
+
+    pattern_ranks = scan_info["pattern_ranks"]
+
+    pattern_ranks_key_prefix = file_name + ": "
+
+    dirs, width_dir, datetime_base, image_files, p = \
+        plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
+
+    rank_dir = dirs.get(os.path.dirname(path))
+
+    if patterns and pattern_ranks and (rank_dir is not None):
+        x_base = rank_dir * width_dir
+
+        def v(path_ignored, timestamp, entry, entry_size):
+            if (not timestamp) or (not entry):
+                return
+
+            plot_entry(patterns, pattern_ranks,
+                       datetime_base, x_base,
+                       pattern_ranks_key_prefix,
+                       timestamp_prefix_len,
+                       timestamp, entry, p)
+
+        args.path = [path]
+        args.scan_start = scan_start
+        args.scan_length = scan_length
+
+        # Driver for visitor callbacks comes from logmerge.
+        logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
+
+    p.finish_image()
+
+    q.put("done", False)
+
+    return {
+        "path": path,
+        "chunk": chunk,
+        "chunk_out_prefix": chunk_out_prefix,
+        "bounds": (p.min_x, p.min_y, p.max_x, p.max_y),
+        "image_files": image_files
+    }
+
+
+def plot_multiprocessing_join(results):
+    pass  # TODO.
+
+
+# Single-threaded plot of the scan_info.
+def plot_scan_info(args, scan_info):
     dirs, width_dir, datetime_base, image_files, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info)
+
+    file_patterns = scan_info["file_patterns"]
+    pattern_ranks = scan_info["pattern_ranks"]
 
     def plot_visitor(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
             return
 
-        pattern = entry_to_pattern(entry)
-        if not pattern:
+        rank_dir = dirs.get(os.path.dirname(path))
+        if rank_dir is None:
             return
 
         file_name = os.path.basename(path)
@@ -673,40 +775,11 @@ def plot_scan_info(argv, args, scan_info):
         if not patterns:
             return
 
-        pattern_key = str(pattern)
-
-        pattern_info = patterns[pattern_key]
-
-        if pattern_info["pattern_base"]:
-            pattern_key = str(pattern_info["pattern_base"])
-
-        rank = pattern_ranks.get(file_name + ": " + pattern_key)
-        if rank is None:
-            return
-
-        rank_dir = dirs.get(os.path.dirname(path))
-        if rank_dir is None:
-            return
-
-        x = (rank_dir * width_dir) + rank
-
-        timestamp_changed, im_changed = \
-            p.plot(timestamp[:timestamp_prefix_len], x)
-
-        if timestamp_changed:
-            datetime_cur = parser.parse(timestamp, fuzzy=True)
-
-            delta_seconds = int((datetime_cur - datetime_base).total_seconds())
-
-            p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
-                        fill=to_rgb(delta_seconds))
-
-        if (not im_changed) and (re_erro.search(entry[0]) is not None):
-            # Mark ERRO with a red triangle.
-            p.draw.polygon((x, p.cur_y,
-                            x+2, p.cur_y+3,
-                            x-2, p.cur_y+3),
-                           fill="#933")
+        plot_entry(patterns, pattern_ranks,
+                   datetime_base, rank_dir * width_dir,
+                   file_name + ": ",
+                   timestamp_prefix_len,
+                   timestamp, entry, p)
 
     # Driver for visitor callbacks comes from logmerge.
     logmerge.main_with_args(args, visitor=plot_visitor)
@@ -715,8 +788,8 @@ def plot_scan_info(argv, args, scan_info):
 
     print "len(dirs)", len(dirs)
     print "len(pattern_ranks)", len(pattern_ranks)
-    print "timestamps_num_unique", timestamps_num_unique
-    print "first_timestamp", first_timestamp
+    print "num_unique_timestamps", scan_info["num_unique_timestamps"]
+    print "first_timestamp", scan_info["first_timestamp"]
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
     print "image_files", image_files
@@ -770,8 +843,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
         for d, dir in enumerate(dirs_sorted):
             x_base = width_dir * d
 
-            x = timestamp_gutter_width + \
-                x_base + (width_dir - 1)
+            x = timestamp_gutter_width + x_base + (width_dir - 1)
 
             p.draw.line([x, 0, x, height], fill="red")
 
@@ -799,6 +871,46 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     p.start_image()
 
     return dirs, width_dir, datetime_base, image_files, p
+
+
+def plot_entry(patterns, pattern_ranks,
+               datetime_base, x_base,
+               pattern_ranks_key_prefix,
+               timestamp_prefix_len,
+               timestamp, entry, p):
+    pattern = entry_to_pattern(entry)
+    if not pattern:
+        return
+
+    pattern_key = str(pattern)
+
+    pattern_info = patterns[pattern_key]
+
+    if pattern_info["pattern_base"]:
+        pattern_key = str(pattern_info["pattern_base"])
+
+    rank = pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
+    if rank is None:
+        return
+
+    x = x_base + rank
+
+    timestamp_changed, im_changed = \
+        p.plot(timestamp[:timestamp_prefix_len], x)
+
+    if timestamp_changed:
+        datetime_cur = parser.parse(timestamp, fuzzy=True)
+
+        delta_seconds = int((datetime_cur - datetime_base).total_seconds())
+
+        p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
+                    fill=to_rgb(delta_seconds))
+
+    if (not im_changed) and (re_erro.search(entry[0]) is not None):
+        # Mark ERRO with a red triangle.
+        p.draw.polygon((x, p.cur_y,
+                        x+2, p.cur_y+3,
+                        x-2, p.cur_y+3), fill="#933")
 
 
 class Plotter(object):
