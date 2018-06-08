@@ -3,7 +3,6 @@
 
 import __builtin__
 import argparse
-import copy
 import json
 import keyword
 import multiprocessing
@@ -346,29 +345,29 @@ def scan_multiprocessing_join(results):
     return file_patterns, num_unique_timestamps
 
 
+# Worker that scans a single chunk.
 def scan_multiprocessing_worker(work):
     chunk, args, q = work
 
     path, scan_start, scan_length = chunk
 
-    child_args = copy.copy(args)  # Copy to avoid mutation issues.
-    child_args.path = [path]
-    child_args.scan_start = scan_start
-    child_args.scan_length = scan_length
+    args.path = [path]
+    args.scan_start = scan_start
+    args.scan_length = scan_length
 
     patterns = {}
 
     timestamp_info = TimestampInfo()
 
-    # Callback that assumes we only have one path.
-    def v(path, timestamp, entry, entry_size):
+    # Optimize to ignore a path check, as the path should equal path_ignored.
+    def v(path_ignored, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
             return
 
         update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
 
     # Main driver of visitor callbacks is reused from logmerge.
-    logmerge.main_with_args(child_args, visitor=v, bar=QueueBar(chunk, q))
+    logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
 
     file_patterns = {}
 
