@@ -110,6 +110,9 @@ def new_argument_parser():
 
 
 def main_steps(argv, args, scan_info=None):
+    if args.multiprocessing >= 0:
+        signal.signal(signal.SIGINT, on_sigint)
+
     steps = args.steps.split(",")
 
     if "load" in steps:
@@ -260,8 +263,6 @@ def scan(argv, args):
 
 
 def scan_multiprocessing(args):
-    signal.signal(signal.SIGINT, on_sigint)
-
     paths, total_size, path_sizes = \
         logmerge.expand_paths(args.path, args.suffix)
 
@@ -613,6 +614,11 @@ def mark_similar_pattern_info_pair(new, old):
 
 # Scan the log entries, plotting them based on the given scan info.
 def plot(argv, args, scan_info):
+    plot_scan_info(argv, args, scan_info)
+
+
+# Single-threaded plot of the scan_info.
+def plot_scan_info(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     first_timestamp = scan_info["first_timestamp"]
