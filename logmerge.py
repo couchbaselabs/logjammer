@@ -266,14 +266,15 @@ def expand_paths(paths, suffix):
         if path.endswith(".zip"):
             zf = zipfile.ZipFile(path, 'r')
             for info in zf.infolist():
-                path = path + "/" + info.filename
-                rv.append(path)
-                path_sizes[path] = info.file_size
+                zpath = path + "/" + info.filename
+                rv.append(zpath)
                 total_size += info.file_size
+                path_sizes[zpath] = info.file_size
         else:
             rv.append(path)
-            path_sizes[path] = os.path.getsize(path)
-            total_size += path_sizes[path]
+            size = os.path.getsize(path)
+            total_size += size
+            path_sizes[path] = size
 
     rv.sort()
 
