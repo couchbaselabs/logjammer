@@ -36,7 +36,14 @@ max_image_height = 0  # 0 means unlimited plot image height.
 def main(argv):
     args = new_argument_parser().parse_args(argv[1:])
 
-    # Since logan invokes logmerge, setup args needed by logmerge.
+    if (args.steps is None) and args.http:
+        args.steps = "http"
+
+    if (args.steps is None):
+        args.steps = "scan,save,plot"
+
+    # Since logan invokes logmerge, set any args needed by logmerge.
+
     args.out = os.devnull
     args.fields = None
     args.max_entries = None
@@ -48,56 +55,7 @@ def main(argv):
     args.wrap = None
     args.wrap_indent = None
 
-    if (args.steps is None) and args.http:
-        args.steps = "http"
-
-    if (args.steps is None):
-        args.steps = "scan,save,plot"
-
     main_steps(argv, args)
-
-
-def main_steps(argv, args, scan_info=None):
-    steps = args.steps.split(",")
-
-    if "load" in steps:
-        print "\n============================================"
-        scan_file = args.out_prefix + "-scan.json"
-        print "loading scan info file:", scan_file
-        with open(scan_file, 'r') as f:
-            scan_info = json.load(f)
-
-    if "scan" in steps:
-        print "\n============================================"
-        print "scanning..."
-        scan_info = scan(argv, args)
-
-    if "save" in steps:
-        print "\n============================================"
-        scan_file = args.out_prefix + "-scan.json"
-        print "saving scan info file:", scan_file
-        with open(scan_file, 'w') as f:
-            f.write(json.dumps(scan_info))
-
-        print "wrote", scan_file
-
-    if "plot" in steps:
-        print "\n============================================"
-        print "plotting..."
-        plot(argv, args, scan_info)
-
-        plot_info = dict(scan_info)  # Copy before modifying.
-        del plot_info["file_patterns"]  # Too big / unused for plot_info.
-
-        plot_file = args.out_prefix + ".json"
-        with open(plot_file, 'w') as f:
-            f.write(json.dumps(plot_info))
-
-        print "wrote", plot_file
-
-    if "http" in steps:
-        print "\n============================================"
-        http_server(argv, args)
 
 
 # These are args known by logan but not by logmerge.
@@ -152,13 +110,56 @@ def new_argument_parser():
     return ap
 
 
+def main_steps(argv, args, scan_info=None):
+    steps = args.steps.split(",")
+
+    if "load" in steps:
+        print "\n============================================"
+        scan_file = args.out_prefix + "-scan.json"
+        print "loading scan info file:", scan_file
+        with open(scan_file, 'r') as f:
+            scan_info = json.load(f)
+
+    if "scan" in steps:
+        print "\n============================================"
+        print "scanning..."
+        scan_info = scan(argv, args)
+
+    if "save" in steps:
+        print "\n============================================"
+        scan_file = args.out_prefix + "-scan.json"
+        print "saving scan info file:", scan_file
+        with open(scan_file, 'w') as f:
+            f.write(json.dumps(scan_info))
+
+        print "wrote", scan_file
+
+    if "plot" in steps:
+        print "\n============================================"
+        print "plotting..."
+        plot(argv, args, scan_info)
+
+        plot_info = dict(scan_info)  # Copy before modifying.
+        del plot_info["file_patterns"]  # Too big / unused for plot_info.
+
+        plot_file = args.out_prefix + ".json"
+        with open(plot_file, 'w') as f:
+            f.write(json.dumps(plot_info))
+
+        print "wrote", plot_file
+
+    if "http" in steps:
+        print "\n============================================"
+        http_server(argv, args)
+
+
 def scan(argv, args):
     g = git_describe_long()
 
     if args.multiprocessing >= 0:
         file_patterns, num_unique_timestamps = scan_multiprocessing(args)
     else:
-        file_patterns, num_unique_timestamps = scan_worker(args)
+        file_patterns, num_unique_timestamps = scan_file_patterns(args)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -290,6 +291,8 @@ def scan_multiprocessing(args):
     return scan_multiprocessing_join(results.get())
 
 
+# Used by the parent to wait until there are enough done worker
+# messages from the queue, also keeping a progress bar updated.
 def scan_multiprocessing_wait(q, num_chunks, total_size):
     bar = progressbar.ProgressBar(max_value=total_size)
 
@@ -300,13 +303,14 @@ def scan_multiprocessing_wait(q, num_chunks, total_size):
         bar.update(sum(progress.itervalues()))
 
         x = q.get()
-        if type(x) == tuple:
+        if x == "done":
+            num_done += 1
+        else:
             chunk, amount = x
             progress[chunk] = amount
-        else:
-            num_done += 1
 
 
+# Joins all the results received from workers.
 def scan_multiprocessing_join(results):
     file_patterns = {}
 
@@ -384,9 +388,9 @@ def scan_multiprocessing_worker(work):
     }
 
 
-def scan_worker(args, bar=None):
-    # Scan the logs to build the pattern info's with a custom visitor.
-    visitor, file_patterns, timestamp_info = scan_patterns_visitor()
+# Single-threaded scan of all the logs to build file_patterns.
+def scan_file_patterns(args, bar=None):
+    visitor, file_patterns, timestamp_info = scan_file_patterns_visitor()
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main_with_args(args, visitor=visitor, bar=bar)
@@ -394,20 +398,55 @@ def scan_worker(args, bar=None):
     return file_patterns, timestamp_info.num_unique
 
 
-def chunkify_path_sizes(path_sizes, default_chunk_size):
-    chunks = []
+# Returns a visitor that can categorize entries from different files.
+def scan_file_patterns_visitor():
+    # Keyed by file name, value is dict of pattern => PatternInfo.
+    file_patterns = {}
 
-    for path, size in path_sizes.iteritems():
-        chunk_size = default_chunk_size or size
+    timestamp_info = TimestampInfo()
 
-        x = 0
-        while size and x < size and chunk_size:
-            chunks.append((path, x, chunk_size))
-            x += chunk_size
+    def v(path, timestamp, entry, entry_size):
+        if (not timestamp) or (not entry):
+            return
 
-    chunks.sort()
+        file_name = os.path.basename(path)
 
-    return chunks
+        patterns = file_patterns.get(file_name)
+        if patterns is None:
+            patterns = {}
+            file_patterns[file_name] = patterns
+
+        update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
+
+    return v, file_patterns, timestamp_info
+
+
+# Updates the patterns dict with the timestamp / entry.
+def update_patterns_with_entry(patterns, timestamp, entry, timestamp_info):
+    pattern = entry_to_pattern(entry)
+    if not pattern:
+        return
+
+    pattern_key = str(pattern)
+
+    pattern_info = patterns.get(pattern_key)
+    if not pattern_info:
+        pattern_info = make_pattern_info(pattern, timestamp)
+        patterns[pattern_key] = pattern_info
+
+    # Increment the total count of instances of this pattern.
+    pattern_info["total"] += 1
+
+    timestamp_bin = timestamp[:timestamp_prefix_len]
+    if timestamp_info.last != timestamp_bin:
+        timestamp_info.last = timestamp_bin
+        timestamp_info.num_unique += 1
+
+
+class TimestampInfo:
+    def __init__(self):
+        self.last = None
+        self.num_unique = 0  # Number of unique timestamp bins.
 
 
 # Need 32 hex chars for a uid pattern.
@@ -463,58 +502,6 @@ re_erro = re.compile(r"[^A-Z]ERRO")
 # Used to group entries by timestamp into bins or buckets.
 timestamp_prefix = "YYYY-MM-DDTHH:MM:SS"
 timestamp_prefix_len = len(timestamp_prefix)
-
-
-# Returns a visitor that can categorize entries from different paths.
-def scan_patterns_visitor():
-    # Keyed by file name, value is dict of pattern => PatternInfo.
-    file_patterns = {}
-
-    timestamp_info = TimestampInfo()
-
-    def v(path, timestamp, entry, entry_size):
-        if (not timestamp) or (not entry):
-            return
-
-        file_name = os.path.basename(path)
-
-        # Register into patterns dict if it's a brand new pattern.
-        patterns = file_patterns.get(file_name)
-        if patterns is None:
-            patterns = {}
-            file_patterns[file_name] = patterns
-
-        update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
-
-    return v, file_patterns, timestamp_info
-
-
-# Updates the patterns dict with the timestamp / entry.
-def update_patterns_with_entry(patterns, timestamp, entry, timestamp_info):
-    pattern = entry_to_pattern(entry)
-    if not pattern:
-        return
-
-    pattern_key = str(pattern)
-
-    pattern_info = patterns.get(pattern_key)
-    if not pattern_info:
-        pattern_info = make_pattern_info(pattern, timestamp)
-        patterns[pattern_key] = pattern_info
-
-    # Increment the total count of instances of this pattern.
-    pattern_info["total"] += 1
-
-    timestamp_bin = timestamp[:timestamp_prefix_len]
-    if timestamp_info.last != timestamp_bin:
-        timestamp_info.last = timestamp_bin
-        timestamp_info.num_unique += 1
-
-
-class TimestampInfo:
-    def __init__(self):
-        self.last = None
-        self.num_unique = 0  # Number of unique timestamp bins.
 
 
 def entry_to_pattern(entry):
@@ -625,6 +612,22 @@ def mark_similar_pattern_info_pair(new, old):
         new["pattern_base"] = old["pattern_base"]
 
         return True
+
+
+def chunkify_path_sizes(path_sizes, default_chunk_size):
+    chunks = []
+
+    for path, size in path_sizes.iteritems():
+        chunk_size = default_chunk_size or size
+
+        x = 0
+        while size and x < size and chunk_size:
+            chunks.append((path, x, chunk_size))
+            x += chunk_size
+
+    chunks.sort()
+
+    return chunks
 
 
 # Scan the log entries, plotting them based on the given scan info.
