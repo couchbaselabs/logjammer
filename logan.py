@@ -416,16 +416,19 @@ def update_patterns_with_entry(patterns, timestamp, entry, timestamp_info):
     # Increment the total count of instances of this pattern.
     pattern_info["total"] += 1
 
-    timestamp_bin = timestamp[:timestamp_prefix_len]
-    if timestamp_info.last != timestamp_bin:
-        timestamp_info.last = timestamp_bin
-        timestamp_info.num_unique += 1
+    timestamp_info.update(timestamp)
 
 
 class TimestampInfo:
     def __init__(self):
         self.last = None
         self.num_unique = 0  # Number of unique timestamp bins.
+
+    def update(self, timestamp):
+        timestamp = timestamp[:timestamp_prefix_len]
+        if self.last != timestamp:
+            self.last = timestamp
+            self.num_unique += 1
 
 
 # Need 32 hex chars for a uid pattern.
