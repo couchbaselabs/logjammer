@@ -628,73 +628,8 @@ def plot_scan_info(argv, args, scan_info):
             first_timestamp and num_unique_timestamps):
         return
 
-    # Sort the dir names, with any common prefix already stripped.
-    paths, total_size, path_sizes = \
-        logmerge.expand_paths(args.path, args.suffix)
-
-    dirs, dirs_sorted, path_prefix = sort_dirs(paths)
-
-    # Initialize plotter.
-    width_dir = len(pattern_ranks) + 1  # Width of a single dir.
-
-    width = timestamp_gutter_width + \
-        width_dir * len(dirs)  # First pixel is encoded seconds.
-
-    height = 1 + num_unique_timestamps
-    if height > max_image_height and max_image_height > 0:
-        height = max_image_height
-
-    height_text = 15
-
-    datetime_base = parser.parse(first_timestamp, fuzzy=True)
-
-    datetime_2010 = parser.parse("2010-01-01 00:00:00")
-
-    start_minutes_since_2010 = \
-        int((datetime_base - datetime_2010).total_seconds() / 60.0)
-
-    image_files = []
-
-    def on_start_image(p):
-        image_files.append(p.im_name)
-
-        # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
-        p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
-                    fill=to_rgb(start_minutes_since_2010))
-        p.cur_y = 1
-
-        # Draw background of vertical lines to demarcate each file in
-        # each dir, and draw dir and file_name text.
-        for d, dir in enumerate(dirs_sorted):
-            x_base = width_dir * d
-
-            x = timestamp_gutter_width + \
-                x_base + (width_dir - 1)
-
-            p.draw.line([x, 0, x, height], fill="red")
-
-            y_text = 0
-
-            p.draw.text((timestamp_gutter_width + x_base, y_text),
-                        dir, fill="#669")
-            y_text += height_text
-
-            file_names = file_patterns.keys()
-            file_names.sort()
-
-            for file_name in file_names:
-                x = timestamp_gutter_width + \
-                    x_base + pattern_ranks[file_name]
-
-                p.draw.line([x, 0, x, height], fill="#363")
-
-                p.draw.text((x, y_text),
-                            file_name, fill="#336")
-                y_text += height_text
-
-    p = Plotter(args.out_prefix, width, height, on_start_image)
-
-    p.start_image()
+    dirs, width_dir, datetime_base, image_files, p = \
+        plot_init(args.path, args.suffix, args.out_prefix, scan_info)
 
     def plot_visitor(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -759,6 +694,83 @@ def plot_scan_info(argv, args, scan_info):
     print "image_files", image_files
 
     return image_files
+
+
+def plot_init(paths_in, suffix, out_prefix, scan_info):
+    file_patterns = scan_info["file_patterns"]
+    pattern_ranks = scan_info["pattern_ranks"]
+    first_timestamp = scan_info["first_timestamp"]
+    num_unique_timestamps = scan_info["num_unique_timestamps"]
+
+    # Sort the dir names, with any common prefix already stripped.
+    paths, total_size, path_sizes = \
+        logmerge.expand_paths(paths_in, suffix)
+
+    dirs, dirs_sorted, path_prefix = sort_dirs(paths)
+
+    # Initialize plotter.
+    width_dir = len(pattern_ranks) + 1  # Width of a single dir.
+
+    width = timestamp_gutter_width + \
+        width_dir * len(dirs)  # First pixel is encoded seconds.
+
+    height = 1 + num_unique_timestamps
+    if height > max_image_height and max_image_height > 0:
+        height = max_image_height
+
+    height_text = 15
+
+    datetime_base = parser.parse(first_timestamp, fuzzy=True)
+
+    datetime_2010 = parser.parse("2010-01-01 00:00:00")
+
+    start_minutes_since_2010 = \
+        int((datetime_base - datetime_2010).total_seconds() / 60.0)
+
+    image_files = []
+
+    def on_start_image(p):
+        image_files.append(p.im_name)
+
+        # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
+        p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
+                    fill=to_rgb(start_minutes_since_2010))
+        p.cur_y = 1
+
+        # Draw background of vertical lines to demarcate each file in
+        # each dir, and draw dir and file_name text.
+        for d, dir in enumerate(dirs_sorted):
+            x_base = width_dir * d
+
+            x = timestamp_gutter_width + \
+                x_base + (width_dir - 1)
+
+            p.draw.line([x, 0, x, height], fill="red")
+
+            y_text = 0
+
+            p.draw.text((timestamp_gutter_width + x_base, y_text),
+                        dir, fill="#669")
+            y_text += height_text
+
+            file_names = file_patterns.keys()
+            file_names.sort()
+
+            for file_name in file_names:
+                x = timestamp_gutter_width + \
+                    x_base + pattern_ranks[file_name]
+
+                p.draw.line([x, 0, x, height], fill="#363")
+
+                p.draw.text((x, y_text),
+                            file_name, fill="#336")
+                y_text += height_text
+
+    p = Plotter(out_prefix, width, height, on_start_image)
+
+    p.start_image()
+
+    return dirs, width_dir, datetime_base, image_files, p
 
 
 class Plotter(object):
