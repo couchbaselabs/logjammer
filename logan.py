@@ -281,30 +281,11 @@ def scan_multiprocessing(args):
 
     pool.close()
 
-    scan_multiprocessing_wait(q, len(chunks), total_size)
+    multiprocessing_wait(q, len(chunks), total_size)
 
     pool.join()
 
     return scan_multiprocessing_join(results.get())
-
-
-# Allows the parent process to wait until there are enough done worker
-# messages, while also keeping a progress bar updated.
-def scan_multiprocessing_wait(q, num_chunks, total_size):
-    bar = progressbar.ProgressBar(max_value=total_size)
-
-    num_done = 0
-    progress = {}
-
-    while num_done < num_chunks:
-        bar.update(sum(progress.itervalues()))
-
-        x = q.get()
-        if x == "done":
-            num_done += 1
-        else:
-            chunk, amount = x
-            progress[chunk] = amount
 
 
 # Joins all the results received from workers.
@@ -886,6 +867,25 @@ def chunkify_path_sizes(path_sizes, default_chunk_size):
     chunks.sort()
 
     return chunks
+
+
+# Allows the parent process to wait until there are enough done worker
+# messages, while also keeping a progress bar updated.
+def multiprocessing_wait(q, num_chunks, total_size):
+    bar = progressbar.ProgressBar(max_value=total_size)
+
+    num_done = 0
+    progress = {}
+
+    while num_done < num_chunks:
+        bar.update(sum(progress.itervalues()))
+
+        x = q.get()
+        if x == "done":
+            num_done += 1
+        else:
+            chunk, amount = x
+            progress[chunk] = amount
 
 
 def http_server(argv, args):
