@@ -67,7 +67,7 @@ def new_argument_parser():
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
 
-    ap.add_argument('--chunk-size', type=int, default=10,
+    ap.add_argument('--chunk-size', type=int, default=2,
                     help="""split large log files into smaller chunks
                     (in MB) when multiprocessing; use 0 for no chunking
                     (default: %(default)s MB)""")
