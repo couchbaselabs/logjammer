@@ -772,6 +772,12 @@ class Plotter(object):
         self.cur_timestamp = None
         self.plot_num = 0
 
+        self.min_x = self.width
+        self.min_y = self.height
+
+        self.max_x = -1
+        self.max_y = -1
+
     def start_image(self):
         self.im = Image.new("RGB", (self.width, self.height))
         self.im_name = self.prefix + "-" + \
@@ -806,8 +812,16 @@ class Plotter(object):
             self.finish_image()
             self.start_image()
 
-        self.draw.point((timestamp_gutter_width + x, self.cur_y),
-                        fill=self.white)
+        cur_x = timestamp_gutter_width + x
+        cur_y = self.cur_y
+
+        self.draw.point((cur_x, cur_y), fill=self.white)
+
+        self.min_x = min(self.min_x, cur_x)
+        self.min_y = min(self.min_y, cur_y)
+
+        self.max_x = max(self.max_x, cur_x)
+        self.max_y = max(self.max_y, cur_y)
 
         self.cur_timestamp = timestamp
 
