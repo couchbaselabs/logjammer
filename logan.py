@@ -7,7 +7,6 @@ import json
 import keyword
 import multiprocessing
 import os
-import pickle
 import re
 import signal
 import subprocess
@@ -164,7 +163,7 @@ def scan(argv, args):
         file_patterns, timestamps_num_unique, timestamps_file_name = \
             scan_file_patterns(args)
 
-    # Process the pattern info's to find similar pattern info's.
+    # Associate similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
 
     print "\n============================================"
@@ -656,7 +655,7 @@ def plot(argv, args, scan_info):
             first_timestamp and timestamps_num_unique):
         return
 
-    if False and args.multiprocessing >= 0:
+    if args.multiprocessing >= 0:
         plot_multiprocessing_scan_info(args, scan_info)
     else:
         plot_scan_info(args, scan_info)
@@ -676,11 +675,9 @@ def plot_multiprocessing_scan_info(args, scan_info):
 
     pool = multiprocessing.Pool(processes=pool_processes)
 
-    scan_info_pickle = pickle.dumps(scan_info)
-
     results = pool.map_async(
         plot_multiprocessing_worker,
-        [(chunk, args, q, scan_info_pickle) for chunk in chunks])
+        [(chunk, args, q) for chunk in chunks])
 
     pool.close()
 
@@ -693,17 +690,15 @@ def plot_multiprocessing_scan_info(args, scan_info):
 
 # Worker that plots a single chunk.
 def plot_multiprocessing_worker(work):
-    chunk, args, q, scan_info_pickle = work
+    chunk, args, q = work
 
     path, scan_start, scan_length = chunk
 
-    chunk_out_prefix = args.out_prefix + "-chunk-" + \
-        path.replace("/", "_") + "-" + \
-        str(scan_start) + "-" + str(scan_length)
-
-    scan_info = pickle.loads(scan_info_pickle)
-
     file_name = os.path.basename(path)
+
+    with open(args.out_prefix + "-scan.json", 'r') as f:
+        scan_info = byteify(json.load(f, object_hook=byteify),
+                            ignore_dicts=True)
 
     patterns = scan_info["file_patterns"].get(file_name)
 
@@ -711,12 +706,18 @@ def plot_multiprocessing_worker(work):
 
     pattern_ranks_key_prefix = file_name + ": "
 
-    dirs, width_dir, datetime_base, image_files, p = \
-        plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
+    chunk_out_prefix = args.out_prefix + "-chunk-" + \
+        path.replace("/", "_").replace("-", "_") + "-" + \
+        str(scan_start) + "-" + str(scan_length)
 
-    rank_dir = dirs.get(os.path.dirname(path))
+    rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
+
+    image_files = bounds = None
 
     if patterns and pattern_ranks and (rank_dir is not None):
+        dirs, path_prefix, width_dir, datetime_base, image_files, p = \
+            plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
+
         x_base = rank_dir * width_dir
 
         def v(path_ignored, timestamp, entry, entry_size):
@@ -736,7 +737,9 @@ def plot_multiprocessing_worker(work):
         # Driver for visitor callbacks comes from logmerge.
         logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
 
-    p.finish_image()
+        p.finish_image()
+
+        bounds = (p.min_x, p.min_y, p.max_x, p.max_y)
 
     q.put("done", False)
 
@@ -744,8 +747,8 @@ def plot_multiprocessing_worker(work):
         "path": path,
         "chunk": chunk,
         "chunk_out_prefix": chunk_out_prefix,
-        "bounds": (p.min_x, p.min_y, p.max_x, p.max_y),
-        "image_files": image_files
+        "image_files": image_files,
+        "bounds": bounds
     }
 
 
@@ -755,7 +758,7 @@ def plot_multiprocessing_join(results):
 
 # Single-threaded plot of the scan_info.
 def plot_scan_info(args, scan_info):
-    dirs, width_dir, datetime_base, image_files, p = \
+    dirs, path_prefix, width_dir, datetime_base, image_files, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info)
 
     file_patterns = scan_info["file_patterns"]
@@ -870,7 +873,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
 
     p.start_image()
 
-    return dirs, width_dir, datetime_base, image_files, p
+    return dirs, path_prefix, width_dir, datetime_base, image_files, p
 
 
 def plot_entry(patterns, pattern_ranks,
