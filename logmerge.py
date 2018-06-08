@@ -234,18 +234,18 @@ def process(paths,
         visitor, w = prepare_fields_filter(fields.split(","), visitor, w)
 
     # Emit heap entries until all entries are consumed.
-    emit_heap_entries(w, path_prefix,
-                      heap_entries, max_entries,
-                      end=end, match=match, match_not=match_not,
-                      single_line=single_line,
-                      timestamp_prefix=timestamp_prefix, visitor=visitor,
-                      wrap=wrap, wrap_indent=wrap_indent, bar=bar)
+    n = emit_heap_entries(w, path_prefix,
+                          heap_entries, max_entries,
+                          end=end, match=match, match_not=match_not,
+                          single_line=single_line,
+                          timestamp_prefix=timestamp_prefix, visitor=visitor,
+                          wrap=wrap, wrap_indent=wrap_indent, bar=bar)
 
     if w and w != sys.stdout:
         w.close()
 
     if bar:
-        bar.update(total_size)
+        bar.update(n)
 
 
 def expand_paths(paths, suffix):
@@ -284,6 +284,7 @@ def expand_paths(paths, suffix):
 def prepare_heap_entries(paths, path_prefix,
                          scan_start, scan_length,
                          max_lines_per_entry, start, end):
+
     heap_entries = []
 
     zfs = {}  # Key is path, value is zipfile.ZipFile.
@@ -488,7 +489,7 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
 
         ok = emitter.emit_heap_entry(timestamp, entry, entry_size, r)
         if not ok:
-            return
+            break
 
         entry, entry_size = r.read()
         if entry:
@@ -504,6 +505,7 @@ def emit_heap_entries(w, path_prefix, heap_entries, max_entries,
                     # Don't need a heap anymore and can just use a loop.
                     process_remaining_entries(timestamp, entry, entry_size, r)
 
+    return emitter.n
 
 def prepare_text_wrapper(wrap, wrap_indent):
     if not wrap:
@@ -578,7 +580,7 @@ class EntryReader(object):
         self.path = path
         self.path_short = path_short
         self.max_lines_per_entry = max_lines_per_entry
-        self.max_bytes = max_bytes,
+        self.max_bytes = max_bytes
         self.close_when_done = close_when_done
         self.last_line = None
         self.num_bytes = 0

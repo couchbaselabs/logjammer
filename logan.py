@@ -96,13 +96,20 @@ def main(argv):
         http_server(argv, args)
 
 
-arg_names = ["http", "multiprocessing", "out-prefix", "repo", "steps"]
+arg_names = ["chunk-size", "http", "multiprocessing",
+             "out-prefix", "repo", "steps"]
 
 
 def new_argument_parser():
     ap = argparse.ArgumentParser(
         description="""%(prog)s provides log analysis
                        (extends logmerge.py feature set)""")
+
+    ap.add_argument('--chunk-size', type=int, default=10*1024*1024,
+                    help="""split large log files into smaller chunks
+                    of these many bytes when multiprocessing;
+                    use 0 for no chunking
+                    (default: %(default)s)""")
 
     ap.add_argument('--http', type=str,
                     help="""when specified, this option overrides
@@ -115,7 +122,7 @@ def new_argument_parser():
                     help="""number of processes to use for multiprocessing;
                     use 0 for default cpu count,
                     use -1 to disable multiprocessing
-                     (default: %(default)s)""")
+                    (default: %(default)s)""")
 
     ap.add_argument('--out-prefix', type=str, default="out-logan",
                     help="""when the processing steps include
@@ -255,7 +262,9 @@ def scan_multiprocessing(args):
     paths, total_size, path_sizes = \
         logmerge.expand_paths(args.path, args.suffix)
 
-    q = multiprocessing.Manager().Queue(len(paths))
+    chunks = chunkify_path_sizes(path_sizes, args.chunk_size)
+
+    q = multiprocessing.Manager().Queue()
 
     pool_processes = args.multiprocessing or multiprocessing.cpu_count()
 
@@ -263,30 +272,30 @@ def scan_multiprocessing(args):
 
     results = pool.map_async(
         scan_multiprocessing_worker,
-        [(path, args, q) for i, path in enumerate(paths)])
+        [(chunk, args, q) for chunk in chunks])
 
     pool.close()
 
-    scan_multiprocessing_wait(q, len(paths), total_size)
+    scan_multiprocessing_wait(q, len(chunks), total_size)
 
     pool.join()
 
     return scan_multiprocessing_join(results.get())
 
 
-def scan_multiprocessing_wait(q, num_results, total_size):
+def scan_multiprocessing_wait(q, num_chunks, total_size):
     bar = progressbar.ProgressBar(max_value=total_size)
 
     num_done = 0
     progress = {}
 
-    while num_done < num_results:
+    while num_done < num_chunks:
         bar.update(sum(progress.itervalues()))
 
         x = q.get()
         if type(x) == tuple:
-            path, amount = x
-            progress[path] = amount
+            chunk, amount = x
+            progress[chunk] = amount
         else:
             num_done += 1
 
@@ -297,16 +306,8 @@ def scan_multiprocessing_join(results):
     sum_unique_timestamps = 0
     max_unique_timestamps = 0
 
-    print "len(results)", len(results)
-
     for result in results:
-        print "  result['path']", result['path']
-        print "  len(result['file_patterns'])", len(result['file_patterns'])
-
         for file_name, r_patterns in result["file_patterns"].iteritems():
-            print "    file_name", file_name
-            print "    len(r_patterns)", len(r_patterns)
-
             patterns = file_patterns.get(file_name)
             if not patterns:
                 file_patterns[file_name] = r_patterns
@@ -338,18 +339,23 @@ def scan_multiprocessing_join(results):
 
 
 def scan_multiprocessing_worker(work):
-    path, args, q = work
+    chunk, args, q = work
+
+    path, scan_start, scan_length = chunk
 
     child_args = copy.copy(args)  # Copy to avoid mutation issues.
     child_args.path = [path]
+    child_args.scan_start = scan_start
+    child_args.scan_length = scan_length
 
     file_patterns, num_unique_timestamps = \
-        scan_worker(child_args, bar=QueueBar(path, q))
+        scan_worker(child_args, bar=QueueBar(chunk, q))
 
     q.put("done", False)
 
     return {
         "path": path,
+        "chunk": chunk,
         "file_patterns": file_patterns,
         "num_unique_timestamps": num_unique_timestamps
     }
@@ -363,6 +369,22 @@ def scan_worker(args, bar=None):
     logmerge.main_with_args(args, visitor=visitor, bar=bar)
 
     return file_patterns, timestamp_info.num_unique
+
+
+def chunkify_path_sizes(path_sizes, default_chunk_size):
+    chunks = []
+
+    for path, size in path_sizes.iteritems():
+        chunk_size = default_chunk_size or size
+
+        x = 0
+        while size and x < size and chunk_size:
+            chunks.append((path, x, chunk_size))
+            x += chunk_size
+
+    chunks.sort()
+
+    return chunks
 
 
 # Need 32 hex chars for a uid pattern.
@@ -1004,15 +1026,15 @@ def git_describe_long():
 
 
 class QueueBar(object):
-    def __init__(self, path, q):
-        self.path = path
+    def __init__(self, chunk, q):
+        self.chunk = chunk
         self.q = q
 
     def start(self, max_value=None):
         pass  # Ignore since parent bar has an aggregate max_value.
 
     def update(self, amount):
-        self.q.put((self.path, amount), False)
+        self.q.put((self.chunk, amount), False)
 
 
 if __name__ == '__main__':
