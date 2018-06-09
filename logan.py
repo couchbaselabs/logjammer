@@ -181,7 +181,7 @@ def scan(argv, args):
     # number of entries seen.
     pattern_uniques = {}
 
-    first_timestamp = None
+    timestamp_first = None
 
     for file_name, patterns in file_patterns.iteritems():
         num_pattern_infos += len(patterns)
@@ -214,9 +214,9 @@ def scan(argv, args):
             pattern_uniques[k] = \
                 pattern_uniques.get(k, 0) + pattern_info_total
 
-            if (not first_timestamp) or \
-               (first_timestamp > pattern_info["first_timestamp"]):
-                first_timestamp = pattern_info["first_timestamp"]
+            if (not timestamp_first) or \
+               (timestamp_first > pattern_info["timestamp_first"]):
+                timestamp_first = pattern_info["timestamp_first"]
 
         pattern_uniques[file_name] = num_entries_file
 
@@ -230,7 +230,7 @@ def scan(argv, args):
 
     print "len(pattern_uniques)", len(pattern_uniques)
 
-    print "first_timestamp", first_timestamp
+    print "timestamp_first", timestamp_first
 
     print "\n============================================"
 
@@ -256,7 +256,7 @@ def scan(argv, args):
         "num_pattern_infos_base":      num_pattern_infos_base,
         "num_pattern_infos_base_none": num_pattern_infos_base_none,
         "pattern_ranks":               pattern_ranks,
-        "first_timestamp":             first_timestamp,
+        "timestamp_first":             timestamp_first,
         "timestamps_num_unique":       timestamps_num_unique,
         "timestamps_file_name":        timestamps_file_name,
         "timestamp_gutter_width":      timestamp_gutter_width
@@ -308,9 +308,9 @@ def scan_multiprocessing_join(results, out_prefix):
                     if not pattern_info:
                         patterns[pattern_key] = r_pattern_info
                     else:
-                        r_ft = r_pattern_info["first_timestamp"]
-                        if pattern_info["first_timestamp"] > r_ft:
-                            pattern_info["first_timestamp"] = r_ft
+                        r_ft = r_pattern_info["timestamp_first"]
+                        if pattern_info["timestamp_first"] > r_ft:
+                            pattern_info["timestamp_first"] = r_ft
 
                         pattern_info["total"] += r_pattern_info["total"]
 
@@ -579,11 +579,11 @@ def entry_to_pattern(entry):
     return pattern
 
 
-def make_pattern_info(pattern, first_timestamp):
+def make_pattern_info(pattern, timestamp_first):
     return {
         "pattern": pattern,
         "pattern_base": None,
-        "first_timestamp": first_timestamp,
+        "timestamp_first": timestamp_first,
         "total": 0
     }
 
@@ -648,11 +648,11 @@ def mark_similar_pattern_info_pair(new, old):
 def plot(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
-    first_timestamp = scan_info["first_timestamp"]
+    timestamp_first = scan_info["timestamp_first"]
     timestamps_num_unique = scan_info["timestamps_num_unique"]
 
     if not (file_patterns and pattern_ranks and
-            first_timestamp and timestamps_num_unique):
+            timestamp_first and timestamps_num_unique):
         return
 
     if args.multiprocessing >= 0:
@@ -710,32 +710,32 @@ def plot_multiprocessing_worker(work):
         path.replace("/", "_").replace("-", "_") + "-" + \
         str(scan_start) + "-" + str(scan_length)
 
-    rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
-
     image_files = bounds = None
 
-    if patterns and pattern_ranks and (rank_dir is not None):
+    if patterns and pattern_ranks:
         dirs, path_prefix, width_dir, datetime_base, image_files, p = \
             plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
 
-        x_base = rank_dir * width_dir
+        rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
+        if rank_dir is not None:
+            x_base = rank_dir * width_dir
 
-        def v(path_ignored, timestamp, entry, entry_size):
-            if (not timestamp) or (not entry):
-                return
+            def v(path_ignored, timestamp, entry, entry_size):
+                if (not timestamp) or (not entry):
+                    return
 
-            plot_entry(patterns, pattern_ranks,
-                       datetime_base, x_base,
-                       pattern_ranks_key_prefix,
-                       timestamp_prefix_len,
-                       timestamp, entry, p)
+                plot_entry(patterns, pattern_ranks,
+                           datetime_base, x_base,
+                           pattern_ranks_key_prefix,
+                           timestamp_prefix_len,
+                           timestamp, entry, p)
 
-        args.path = [path]
-        args.scan_start = scan_start
-        args.scan_length = scan_length
+            args.path = [path]
+            args.scan_start = scan_start
+            args.scan_length = scan_length
 
-        # Driver for visitor callbacks comes from logmerge.
-        logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
+            # Driver for visitor callbacks comes from logmerge.
+            logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
 
         p.finish_image()
 
@@ -791,8 +791,8 @@ def plot_scan_info(args, scan_info):
 
     print "len(dirs)", len(dirs)
     print "len(pattern_ranks)", len(pattern_ranks)
-    print "num_unique_timestamps", scan_info["num_unique_timestamps"]
-    print "first_timestamp", scan_info["first_timestamp"]
+    print "timestamp_first", scan_info["timestamp_first"]
+    print "timestamps_num_unique", scan_info["timestamps_num_unique"]
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
     print "image_files", image_files
@@ -803,7 +803,7 @@ def plot_scan_info(args, scan_info):
 def plot_init(paths_in, suffix, out_prefix, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
-    first_timestamp = scan_info["first_timestamp"]
+    timestamp_first = scan_info["timestamp_first"]
     timestamps_num_unique = scan_info["timestamps_num_unique"]
 
     # Sort the dir names, with any common prefix already stripped.
@@ -824,7 +824,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
 
     height_text = 15
 
-    datetime_base = parser.parse(first_timestamp, fuzzy=True)
+    datetime_base = parser.parse(timestamp_first, fuzzy=True)
 
     datetime_2010 = parser.parse("2010-01-01 00:00:00")
 
@@ -973,22 +973,24 @@ class Plotter(object):
             self.finish_image()
             self.start_image()
 
-        cur_x = timestamp_gutter_width + x
-        cur_y = self.cur_y
-
-        self.draw.point((cur_x, cur_y), fill=self.white)
-
-        self.min_x = min(self.min_x, cur_x)
-        self.min_y = min(self.min_y, cur_y)
-
-        self.max_x = max(self.max_x, cur_x)
-        self.max_y = max(self.max_y, cur_y)
+        self.plot_point(x, self.cur_y)
 
         self.cur_timestamp = timestamp
 
-        self.plot_num += 1
-
         return cur_timestamp_changed, cur_im_changed
+
+    def plot_point(self, x, y):
+        x = timestamp_gutter_width + x
+
+        self.draw.point((x, y), fill=self.white)
+
+        self.min_x = min(self.min_x, x)
+        self.min_y = min(self.min_y, y)
+
+        self.max_x = max(self.max_x, x)
+        self.max_y = max(self.max_y, y)
+
+        self.plot_num += 1
 
 
 def to_rgb(v):
