@@ -173,9 +173,7 @@ def plot_multiprocessing_join(args, scan_info, results):
             if min_x < max_x and min_y < max_y:
                 chunk_image = Image.open(image_file_name)
 
-                p.im.paste(chunk_image.crop(bounds),
-                           (min_x + 1, min_y + 1,
-                            max_x + 1, max_y + 1))
+                p.im.paste(chunk_image.crop(bounds), bounds)
 
                 chunk_image.close()
 
