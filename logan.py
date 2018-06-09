@@ -157,9 +157,11 @@ def main_steps(argv, args, scan_info=None):
 
 def scan(argv, args):
     if args.multiprocessing >= 0:
-        file_patterns, num_unique_timestamps = scan_multiprocessing(args)
+        file_patterns, timestamps_num_unique, timestamps_file_name = \
+            scan_multiprocessing(args)
     else:
-        file_patterns, num_unique_timestamps = scan_file_patterns(args)
+        file_patterns, timestamps_num_unique, timestamps_file_name = \
+            scan_file_patterns(args)
 
     # Process the pattern info's to find similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
@@ -255,7 +257,8 @@ def scan(argv, args):
         "num_pattern_infos_base_none": num_pattern_infos_base_none,
         "pattern_ranks":               pattern_ranks,
         "first_timestamp":             first_timestamp,
-        "num_unique_timestamps":       num_unique_timestamps,
+        "timestamps_num_unique":       timestamps_num_unique,
+        "timestamps_file_name":        timestamps_file_name,
         "timestamp_gutter_width":      timestamp_gutter_width
     }
 
@@ -285,14 +288,14 @@ def scan_multiprocessing(args):
 
     pool.join()
 
-    return scan_multiprocessing_join(results.get())
+    return scan_multiprocessing_join(results.get(), args.out_prefix)
 
 
 # Joins all the results received from workers.
-def scan_multiprocessing_join(results):
+def scan_multiprocessing_join(results, out_prefix):
     file_patterns = {}
 
-    path_unique_timestamps = {}
+    timestamps_file_names = []
 
     for result in results:
         for file_name, r_patterns in result["file_patterns"].iteritems():
@@ -311,21 +314,23 @@ def scan_multiprocessing_join(results):
 
                         pattern_info["total"] += r_pattern_info["total"]
 
-        path = result["path"]
-        path_unique_timestamps[path] = \
-            path_unique_timestamps.get(path, 0) + \
-            result["num_unique_timestamps"]
+        timestamps_file_name = result.get("timestamps_file_name")
+        if timestamps_file_name:
+            timestamps_file_names.append(timestamps_file_name)
 
-    # Estimate the overall num_unique_timestamps heuristically.
-    sum_unique_timestamps = sum(path_unique_timestamps.itervalues())
+    timestamps_file_name = out_prefix + "-timestamps.txt"
 
-    max_unique_timestamps = max(path_unique_timestamps.itervalues())
+    subprocess.check_output(
+        ['sort', '--merge', '--unique', '--output=' + timestamps_file_name] +
+        timestamps_file_names)
 
-    num_unique_timestamps = max(int(sum_unique_timestamps /
-                                    len(path_unique_timestamps)) + 1,
-                                int(max_unique_timestamps * 1.5))
+    timestamps_num_unique = int(subprocess.check_output(
+        ['wc', '-l', timestamps_file_name]).strip().split(' ')[0])
 
-    return file_patterns, num_unique_timestamps
+    for x in timestamps_file_names:
+        os.remove(x)
+
+    return file_patterns, timestamps_num_unique, timestamps_file_name
 
 
 # Worker that scans a single chunk.
@@ -336,12 +341,10 @@ def scan_multiprocessing_worker(work):
 
     patterns = {}
 
-    timestamp_file_name = \
-        args.out_prefix + "-chunk-" + \
-        str(chunk).replace('/', '_').replace('-', '_').replace(' ', '') + \
-        "-timestamps.txt"
-
-    timestamp_info = TimestampInfo(timestamp_file_name)
+    timestamp_info = TimestampInfo(
+        args.out_prefix + "-chunk-" +
+        str(chunk).replace('/', '_').replace('-', '_').replace(' ', '') +
+        "-timestamps.txt")
 
     # Optimize to ignore a path check, as the path should equal path_ignored.
     def v(path_ignored, timestamp, entry, entry_size):
@@ -371,7 +374,8 @@ def scan_multiprocessing_worker(work):
         "path": path,
         "chunk": chunk,
         "file_patterns": file_patterns,
-        "num_unique_timestamps": timestamp_info.num_unique
+        "timestamps_num_unique": timestamp_info.num_unique,
+        "timestamps_file_name": timestamp_info.file_name
     }
 
 
@@ -385,7 +389,7 @@ def scan_file_patterns(args, bar=None):
     timestamp_info.flush()
     timestamp_info.close()
 
-    return file_patterns, timestamp_info.num_unique
+    return file_patterns, timestamp_info.num_unique, timestamp_info.file_name
 
 
 # Returns a visitor that can categorize entries from different files.
@@ -446,6 +450,8 @@ class TimestampInfo(object):
         if self.f:
             self.f.close()
             self.f = None
+        else:
+            self.file_name = None
 
     def flush(self):
         if self.recent_num > 0:
@@ -645,10 +651,10 @@ def plot_scan_info(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     first_timestamp = scan_info["first_timestamp"]
-    num_unique_timestamps = scan_info["num_unique_timestamps"]
+    timestamps_num_unique = scan_info["timestamps_num_unique"]
 
     if not (file_patterns and pattern_ranks and
-            first_timestamp and num_unique_timestamps):
+            first_timestamp and timestamps_num_unique):
         return
 
     dirs, width_dir, datetime_base, image_files, p = \
@@ -710,7 +716,7 @@ def plot_scan_info(argv, args, scan_info):
 
     print "len(dirs)", len(dirs)
     print "len(pattern_ranks)", len(pattern_ranks)
-    print "num_unique_timestamps", num_unique_timestamps
+    print "timestamps_num_unique", timestamps_num_unique
     print "first_timestamp", first_timestamp
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
@@ -723,7 +729,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     first_timestamp = scan_info["first_timestamp"]
-    num_unique_timestamps = scan_info["num_unique_timestamps"]
+    timestamps_num_unique = scan_info["timestamps_num_unique"]
 
     # Sort the dir names, with any common prefix already stripped.
     paths, total_size, path_sizes = \
@@ -737,7 +743,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     width = timestamp_gutter_width + \
         width_dir * len(dirs)  # First pixel is encoded seconds.
 
-    height = 1 + num_unique_timestamps
+    height = 1 + timestamps_num_unique
     if height > max_image_height and max_image_height > 0:
         height = max_image_height
 
