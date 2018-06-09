@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- mode: Python;-*-
 
-import multiprocessing
 import os
 import subprocess
 
