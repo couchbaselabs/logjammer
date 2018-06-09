@@ -216,8 +216,6 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     image_files = []
 
     def on_start_image(p):
-        image_files.append(p.im_name)
-
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
@@ -251,7 +249,10 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
                             file_name, fill="#336")
                 y_text += height_text
 
-    p = Plotter(out_prefix, width, height, on_start_image)
+    def on_finish_image(p):
+        image_files.append(p.im_name)
+
+    p = Plotter(out_prefix, width, height, on_start_image, on_finish_image)
 
     p.start_image()
 
@@ -265,8 +266,7 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
 
     x = x_base + rank
 
-    timestamp_changed, im_changed = \
-        p.plot(timestamp[:timestamp_prefix_len], x)
+    timestamp_changed, im_changed = p.plot(timestamp[:timestamp_prefix_len], x)
 
     if timestamp_changed:
         datetime_cur = parser.parse(timestamp, fuzzy=True)
@@ -283,7 +283,8 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
                         x-2, p.cur_y+3), fill="#933")
 
 
-def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix, entry):
+def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
+                       entry):
     pattern = entry_to_pattern(entry)
     if not pattern:
         return
@@ -301,11 +302,12 @@ def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
 class Plotter(object):
     white = "white"
 
-    def __init__(self, prefix, width, height, on_start_image):
+    def __init__(self, prefix, width, height, on_start_image, on_finish_image):
         self.prefix = prefix
         self.width = width
         self.height = height
         self.on_start_image = on_start_image
+        self.on_finish_image = on_finish_image
 
         self.im = None
         self.im_num = 0
@@ -333,6 +335,9 @@ class Plotter(object):
             self.on_start_image(self)
 
     def finish_image(self):
+        if self.on_finish_image:
+            self.on_finish_image(self)
+
         self.im.save(self.im_name)
         self.im.close()
         self.im = None
@@ -341,6 +346,7 @@ class Plotter(object):
         self.draw = None
         self.cur_y = None
 
+    # Plot a point at (x, cur_y), advancing cur_y if the timestamp changed.
     def plot(self, timestamp, x):
         cur_timestamp_changed = False
         if self.cur_timestamp != timestamp:
