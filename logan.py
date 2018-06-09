@@ -996,12 +996,6 @@ def multiprocessing_wait(q, num_chunks, total_size):
             progress[chunk] = amount
 
 
-def git_describe_long():
-    return subprocess.check_output(
-        ['git', 'describe', '--long'],
-        cwd=os.path.dirname(os.path.realpath(__file__))).strip()
-
-
 # QueueBar implements a subset of progress bar methods, forwarding
 # update() invocations to a queue.
 class QueueBar(object):
@@ -1014,6 +1008,12 @@ class QueueBar(object):
 
     def update(self, amount):
         self.q.put((self.chunk, amount), False)
+
+
+def git_describe_long():
+    return subprocess.check_output(
+        ['git', 'describe', '--long'],
+        cwd=os.path.dirname(os.path.realpath(__file__))).strip()
 
 
 # See: https://stackoverflow.com/questions/956867/
