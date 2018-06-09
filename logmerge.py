@@ -300,8 +300,10 @@ def prepare_heap_entries(paths, path_prefix,
                 zfs[zp] = zf
 
             f = zf.open(path[zip_suffix+5:], 'r')
+            f_size = zf.file_size
         else:
             f = open(path, 'r')
+            f_size = os.path.getsize(path)
 
         scan_start = scan_start or 0
         if scan_start:
@@ -311,7 +313,7 @@ def prepare_heap_entries(paths, path_prefix,
                         max_lines_per_entry, scan_length)
 
         if start:  # Optional start timestamp.
-            scan_length = seek_to_timestamp(f, path, path_prefix,
+            scan_length = seek_to_timestamp(f, path, path_prefix, f_size,
                                             scan_start, scan_length, start)
 
             r = EntryReader(f, path, path[len(path_prefix):],
@@ -330,14 +332,16 @@ def prepare_heap_entries(paths, path_prefix,
     return heap_entries
 
 
-def seek_to_timestamp(f, path, path_prefix,
+def seek_to_timestamp(f, path, path_prefix, f_size,
                       scan_start, scan_length, start_timestamp):
     """Binary search the log file entries for the start_timestamp,
        leaving the file at the right seek position."""
 
+    path_short = path[len(path_prefix):]
+
     i = scan_start
 
-    j = os.path.getsize(path)
+    j = f_size
     if scan_length and i + scan_length < j:
         j = i + scan_length
 
@@ -348,14 +352,15 @@ def seek_to_timestamp(f, path, path_prefix,
 
         f.seek(mid)
 
-        r2 = EntryReader(f, path, path[len(path_prefix):],
-                         1, scan_length, close_when_done=False)
+        r2 = EntryReader(f, path, path_short, 0.5, None,
+                         close_when_done=False)
+
         r2.read()  # Discard this read as it's likely mid-entry.
 
         entry, entry_size = r2.read()
         if entry:
             if start_timestamp > parse_entry_timestamp(entry[0]):
-                i = mid + 1
+                i = f.tell() + 1
             else:
                 j = mid
         else:
