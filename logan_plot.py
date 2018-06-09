@@ -65,7 +65,7 @@ def plot_multiprocessing_scan_info(args, scan_info):
 
     pool.join()
 
-    return plot_multiprocessing_join(results.get())
+    return plot_multiprocessing_join(args, results.get())
 
 
 # Worker that plots a single chunk.
@@ -153,7 +153,7 @@ def plot_multiprocessing_worker(work):
     }
 
 
-def plot_multiprocessing_join(results):
+def plot_multiprocessing_join(args, results):
     image_infos = []
     for result in results:
         for image_info in result["image_infos"] or []:
