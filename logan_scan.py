@@ -558,3 +558,21 @@ def git_describe_long():
     return subprocess.check_output(
         ['git', 'describe', '--long'],
         cwd=os.path.dirname(os.path.realpath(__file__))).strip()
+
+
+# See: https://stackoverflow.com/questions/956867/
+#      how-to-get-string-objects-instead-of-unicode-from-json
+def byteify(data, ignore_dicts=False):
+    if isinstance(data, unicode):
+        return data.encode('utf-8')
+
+    if isinstance(data, list):
+        return [byteify(item, ignore_dicts=True) for item in data]
+
+    if isinstance(data, dict) and not ignore_dicts:
+        return {
+            byteify(key, ignore_dicts=True): byteify(value, ignore_dicts=True)
+            for key, value in data.iteritems()
+        }
+
+    return data
