@@ -336,7 +336,12 @@ def scan_multiprocessing_worker(work):
 
     patterns = {}
 
-    timestamp_info = TimestampInfo()
+    timestamp_file_name = \
+        args.out_prefix + "-chunk-" + \
+        str(chunk).replace('/', '_').replace('-', '_').replace(' ', '') + \
+        "-timestamps.txt"
+
+    timestamp_info = TimestampInfo(timestamp_file_name)
 
     # Optimize to ignore a path check, as the path should equal path_ignored.
     def v(path_ignored, timestamp, entry, entry_size):
@@ -351,6 +356,9 @@ def scan_multiprocessing_worker(work):
     args.scan_length = scan_length
 
     logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
+
+    timestamp_info.flush()
+    timestamp_info.close()
 
     file_patterns = {}
 
@@ -369,20 +377,23 @@ def scan_multiprocessing_worker(work):
 
 # Single-threaded scan of all the logs to build file_patterns.
 def scan_file_patterns(args, bar=None):
-    visitor, file_patterns, timestamp_info = scan_file_patterns_visitor()
+    visitor, file_patterns, timestamp_info = scan_file_patterns_visitor(args)
 
     # Main driver of visitor callbacks is reused from logmerge.
     logmerge.main_with_args(args, visitor=visitor, bar=bar)
+
+    timestamp_info.flush()
+    timestamp_info.close()
 
     return file_patterns, timestamp_info.num_unique
 
 
 # Returns a visitor that can categorize entries from different files.
-def scan_file_patterns_visitor():
+def scan_file_patterns_visitor(args):
     # Keyed by file name, value is dict of pattern => PatternInfo.
     file_patterns = {}
 
-    timestamp_info = TimestampInfo()
+    timestamp_info = TimestampInfo(args.out_prefix + "-timestamps.txt")
 
     def v(path, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -419,16 +430,38 @@ def update_patterns_with_entry(patterns, timestamp, entry, timestamp_info):
     timestamp_info.update(timestamp)
 
 
-class TimestampInfo:
-    def __init__(self):
+class TimestampInfo(object):
+    def __init__(self, file_name):
+        self.file_name = file_name
+
         self.last = None
         self.num_unique = 0  # Number of unique timestamp bins.
 
+        self.f = open(file_name, "wb")
+
+        self.recent_num = 0
+        self.recent = 1000 * [None]
+
+    def close(self):
+        self.f.close()
+
+    def flush(self):
+        if self.recent_num > 0:
+            self.f.write("\n".join(self.recent[0:self.recent_num]))
+            self.f.write("\n")
+            self.recent_num = 0
+
     def update(self, timestamp):
         timestamp = timestamp[:timestamp_prefix_len]
+
         if self.last != timestamp:
             self.last = timestamp
             self.num_unique += 1
+
+            self.recent[self.recent_num] = timestamp
+            self.recent_num += 1
+            if self.recent_num >= len(self.recent):
+                self.flush()
 
 
 # Need 32 hex chars for a uid pattern.
