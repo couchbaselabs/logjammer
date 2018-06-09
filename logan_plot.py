@@ -157,16 +157,27 @@ def plot_multiprocessing_join(args, scan_info, results):
     with open(scan_info["timestamps_file_name"], 'r') as f:
         timestamps = f.readlines()
 
-    image_infos = []
-    for result in results:
-        for image_info in result["image_infos"] or []:
-            image_infos.append(image_info)
-
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info)
 
     for i, timestamp in enumerate(timestamps):
         plot_timestamp(p, datetime_base, timestamp, i + 1)
+
+    for result in results:
+        for image_info in result["image_infos"] or []:
+            image_file_name, bounds = image_info
+            if not image_file_name:
+                continue
+
+            min_x, min_y, max_x, max_y = bounds
+            if min_x >= max_x or min_y >= max_y:
+                continue
+
+            chunk_image = Image.open(image_file_name)
+
+            p.im.paste(chunk_image.crop(bounds), bounds)
+
+            os.remove(image_file_name)
 
     p.finish_image()
 
