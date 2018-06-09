@@ -34,7 +34,7 @@ def plot(argv, args, scan_info):
             timestamp_first and timestamps_num_unique):
         return
 
-    if False and args.multiprocessing >= 0:
+    if args.multiprocessing >= 0:
         plot_multiprocessing_scan_info(args, scan_info)
     else:
         plot_scan_info(args, scan_info)
@@ -92,10 +92,10 @@ def plot_multiprocessing_worker(work):
         path.replace("/", "_").replace("-", "_") + "-" + \
         str(scan_start) + "-" + str(scan_length)
 
-    image_files = bounds = None
+    image_infos = None
 
     if patterns and pattern_ranks:
-        dirs, path_prefix, width_dir, datetime_base, image_files, p = \
+        dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
             plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
 
         rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
@@ -124,16 +124,13 @@ def plot_multiprocessing_worker(work):
 
         p.finish_image()
 
-        bounds = (p.min_x, p.min_y, p.max_x, p.max_y)
-
     q.put("done", False)
 
     return {
         "path": path,
         "chunk": chunk,
         "chunk_out_prefix": chunk_out_prefix,
-        "image_files": image_files,
-        "bounds": bounds
+        "image_infos": image_infos,
     }
 
 
@@ -143,7 +140,7 @@ def plot_multiprocessing_join(results):
 
 # Single-threaded plot of the scan_info.
 def plot_scan_info(args, scan_info):
-    dirs, path_prefix, width_dir, datetime_base, image_files, p = \
+    dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info)
 
     file_patterns = scan_info["file_patterns"]
@@ -177,9 +174,9 @@ def plot_scan_info(args, scan_info):
     print "timestamps_num_unique", scan_info["timestamps_num_unique"]
     print "p.im_num", p.im_num
     print "p.plot_num", p.plot_num
-    print "image_files", image_files
+    print "image_infos", image_infos
 
-    return image_files
+    return image_infos
 
 
 def plot_init(paths_in, suffix, out_prefix, scan_info):
@@ -213,7 +210,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     start_minutes_since_2010 = \
         int((datetime_base - datetime_2010).total_seconds() / 60.0)
 
-    image_files = []
+    image_infos = []
 
     def on_start_image(p):
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
@@ -250,13 +247,13 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
                 y_text += height_text
 
     def on_finish_image(p):
-        image_files.append(p.im_name)
+        image_infos.append((p.im_name, (p.min_x, p.min_y, p.max_x, p.max_y)))
 
     p = Plotter(out_prefix, width, height, on_start_image, on_finish_image)
 
     p.start_image()
 
-    return dirs, path_prefix, width_dir, datetime_base, image_files, p
+    return dirs, path_prefix, width_dir, datetime_base, image_infos, p
 
 
 def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
