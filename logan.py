@@ -9,7 +9,8 @@ import sys
 from logan_args import new_argument_parser
 from logan_http import http_server
 from logan_plot import plot
-from logan_scan import scan, byteify
+from logan_scan import scan
+from logan_util import byteify
 
 
 def main(argv):

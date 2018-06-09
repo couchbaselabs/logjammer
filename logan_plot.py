@@ -11,9 +11,10 @@ from PIL import Image, ImageDraw
 
 import logmerge
 
-from logan_scan import byteify, chunkify_path_sizes, \
-    entry_to_pattern, multiprocessing_wait, re_erro, \
-    timestamp_prefix_len, QueueBar
+from logan_scan import entry_to_pattern, re_erro, timestamp_prefix_len
+
+from logan_util import byteify, chunkify_path_sizes, \
+    multiprocessing_wait, QueueBar
 
 
 timestamp_gutter_width = 1  # In pixels.
