@@ -137,7 +137,12 @@ def plot_multiprocessing_worker(work):
 
 
 def plot_multiprocessing_join(results):
-    pass  # TODO.
+    image_infos = []
+    for result in results:
+        for image_info in result["image_infos"]:
+            image_infos.append(image_info)
+
+    print image_infos
 
 
 # Single-threaded plot of the scan_info.
