@@ -34,7 +34,7 @@ def multiprocessing_wait(q, num_chunks, total_size):
     progress = {}
 
     while num_done < num_chunks:
-        bar.update(sum(progress.itervalues()))
+        bar.update(min(total_size, sum(progress.itervalues())))
 
         x = q.get()
         if x == "done":

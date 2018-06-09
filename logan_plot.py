@@ -93,6 +93,8 @@ def plot_multiprocessing_worker(work):
         path.replace("/", "_").replace("-", "_") + "-" + \
         str(scan_start) + "-" + str(scan_length)
 
+    bar = QueueBar(chunk, q)
+
     image_infos = None
 
     if patterns and pattern_ranks:
@@ -103,6 +105,13 @@ def plot_multiprocessing_worker(work):
         if rank_dir is not None:
             x_base = rank_dir * width_dir
 
+            class VState:
+                def __init__(self):
+                    self.last_timestamp = None
+                    self.last_y = None
+
+            v_state = VState()
+
             def v(path_ignored, timestamp, entry, entry_size):
                 if (not timestamp) or (not entry):
                     return
@@ -112,9 +121,17 @@ def plot_multiprocessing_worker(work):
 
                 x = x_base + rank
 
-                y = bisect.bisect_left(timestamps, timestamp) + 1
+                if timestamp == v_state.last_timestamp:
+                    y = v_state.last_y
+                else:
+                    # TODO: This is inefficient, as timestamps are ordered,
+                    # and callback timestamp arg is always increasing.
+                    y = bisect.bisect_left(timestamps, timestamp) + 1
 
                 p.plot_point(x, y)
+
+                v_state.last_timestamp = timestamp
+                v_state.last_y = y
 
             args = copy.copy(args)
             args.path = [path]
@@ -122,7 +139,7 @@ def plot_multiprocessing_worker(work):
             args.scan_length = scan_length
 
             # Driver for visitor callbacks comes from logmerge.
-            logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
+            logmerge.main_with_args(args, visitor=v, bar=bar)
 
         p.finish_image()
 
@@ -139,7 +156,7 @@ def plot_multiprocessing_worker(work):
 def plot_multiprocessing_join(results):
     image_infos = []
     for result in results:
-        for image_info in result["image_infos"]:
+        for image_info in result["image_infos"] or []:
             image_infos.append(image_info)
 
     print image_infos
