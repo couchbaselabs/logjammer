@@ -437,18 +437,24 @@ class TimestampInfo(object):
         self.last = None
         self.num_unique = 0  # Number of unique timestamp bins.
 
-        self.f = open(file_name, "wb")
+        self.f = None
 
         self.recent_num = 0
         self.recent = 1000 * [None]
 
     def close(self):
-        self.f.close()
+        if self.f:
+            self.f.close()
+            self.f = None
 
     def flush(self):
         if self.recent_num > 0:
+            if not self.f:
+                self.f = open(self.file_name, "wb")
+
             self.f.write("\n".join(self.recent[0:self.recent_num]))
             self.f.write("\n")
+
             self.recent_num = 0
 
     def update(self, timestamp):
