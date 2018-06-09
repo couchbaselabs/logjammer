@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- mode: Python;-*-
 
+import bisect
 import json
 import multiprocessing
 import os
@@ -33,7 +34,7 @@ def plot(argv, args, scan_info):
             timestamp_first and timestamps_num_unique):
         return
 
-    if False and args.multiprocessing >= 0:
+    if args.multiprocessing >= 0:
         plot_multiprocessing_scan_info(args, scan_info)
     else:
         plot_scan_info(args, scan_info)
@@ -78,6 +79,9 @@ def plot_multiprocessing_worker(work):
         scan_info = byteify(json.load(f, object_hook=byteify),
                             ignore_dicts=True)
 
+    with open(scan_info["timestamps_file_name"], 'r') as f:
+        timestamps = f.readlines()
+
     patterns = scan_info["file_patterns"].get(file_name)
 
     pattern_ranks = scan_info["pattern_ranks"]
@@ -102,10 +106,8 @@ def plot_multiprocessing_worker(work):
                 if (not timestamp) or (not entry):
                     return
 
-                plot_entry(patterns, pattern_ranks,
-                           datetime_base, x_base,
-                           pattern_ranks_key_prefix,
-                           timestamp, entry, p)
+                plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
+                           datetime_base, x_base, timestamp, entry, p)
 
             args.path = [path]
             args.scan_start = scan_start
@@ -155,9 +157,8 @@ def plot_scan_info(args, scan_info):
         if not patterns:
             return
 
-        plot_entry(patterns, pattern_ranks,
+        plot_entry(patterns, pattern_ranks, file_name + ": ",
                    datetime_base, rank_dir * width_dir,
-                   file_name + ": ",
                    timestamp, entry, p)
 
     # Driver for visitor callbacks comes from logmerge.
@@ -252,24 +253,11 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     return dirs, path_prefix, width_dir, datetime_base, image_files, p
 
 
-def plot_entry(patterns, pattern_ranks,
+def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
                datetime_base, x_base,
-               pattern_ranks_key_prefix,
                timestamp, entry, p):
-    pattern = entry_to_pattern(entry)
-    if not pattern:
-        return
-
-    pattern_key = str(pattern)
-
-    pattern_info = patterns[pattern_key]
-
-    if pattern_info["pattern_base"]:
-        pattern_key = str(pattern_info["pattern_base"])
-
-    rank = pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
-    if rank is None:
-        return
+    rank = entry_pattern_rank(
+        patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
 
     x = x_base + rank
 
@@ -289,6 +277,21 @@ def plot_entry(patterns, pattern_ranks,
         p.draw.polygon((x, p.cur_y,
                         x+2, p.cur_y+3,
                         x-2, p.cur_y+3), fill="#933")
+
+
+def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix, entry):
+    pattern = entry_to_pattern(entry)
+    if not pattern:
+        return
+
+    pattern_key = str(pattern)
+
+    pattern_info = patterns[pattern_key]
+
+    if pattern_info["pattern_base"]:
+        pattern_key = str(pattern_info["pattern_base"])
+
+    return pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
 
 
 class Plotter(object):
