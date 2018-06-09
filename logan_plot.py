@@ -106,8 +106,14 @@ def plot_multiprocessing_worker(work):
                 if (not timestamp) or (not entry):
                     return
 
-                plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
-                           datetime_base, x_base, timestamp, entry, p)
+                rank = entry_pattern_rank(
+                    patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
+
+                x = x_base + rank
+
+                y = bisect.bisect_left(timestamps, timestamp) + 1
+
+                p.plot_point(x, y)
 
             args.path = [path]
             args.scan_start = scan_start
@@ -158,8 +164,7 @@ def plot_scan_info(args, scan_info):
             return
 
         plot_entry(patterns, pattern_ranks, file_name + ": ",
-                   datetime_base, rank_dir * width_dir,
-                   timestamp, entry, p)
+                   datetime_base, rank_dir * width_dir, timestamp, entry, p)
 
     # Driver for visitor callbacks comes from logmerge.
     logmerge.main_with_args(args, visitor=plot_visitor)
@@ -254,8 +259,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
 
 
 def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
-               datetime_base, x_base,
-               timestamp, entry, p):
+               datetime_base, x_base, timestamp, entry, p):
     rank = entry_pattern_rank(
         patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
 
