@@ -65,7 +65,7 @@ def plot_multiprocessing_scan_info(args, scan_info):
 
     pool.join()
 
-    return plot_multiprocessing_join(args, results.get())
+    return plot_multiprocessing_join(args, scan_info, results.get())
 
 
 # Worker that plots a single chunk.
@@ -153,11 +153,19 @@ def plot_multiprocessing_worker(work):
     }
 
 
-def plot_multiprocessing_join(args, results):
+def plot_multiprocessing_join(args, scan_info, results):
     image_infos = []
     for result in results:
         for image_info in result["image_infos"] or []:
             image_infos.append(image_info)
+
+    with open(scan_info["timestamps_file_name"], 'r') as f:
+        timestamps = f.readlines()
+
+    dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
+        plot_init(args.path, args.suffix, args.out_prefix, scan_info)
+
+    p.finish_image()
 
     print image_infos
 
@@ -290,18 +298,21 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
     timestamp_changed, im_changed = p.plot(timestamp[:timestamp_prefix_len], x)
 
     if timestamp_changed:
-        datetime_cur = parser.parse(timestamp, fuzzy=True)
-
-        delta_seconds = int((datetime_cur - datetime_base).total_seconds())
-
-        p.draw.line((0, p.cur_y, timestamp_gutter_width - 1, p.cur_y),
-                    fill=to_rgb(delta_seconds))
+        plot_timestamp(p, datetime_base, timestamp, p.cur_y)
 
     if (not im_changed) and (re_erro.search(entry[0]) is not None):
         # Mark ERRO with a red triangle.
         p.draw.polygon((x, p.cur_y,
                         x+2, p.cur_y+3,
                         x-2, p.cur_y+3), fill="#933")
+
+def plot_timestamp(p, datetime_base, timestamp, y):
+    datetime_cur = parser.parse(timestamp, fuzzy=True)
+
+    delta_seconds = int((datetime_cur - datetime_base).total_seconds())
+
+    p.draw.line((0, y, timestamp_gutter_width - 1, y),
+                fill=to_rgb(delta_seconds))
 
 
 def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
