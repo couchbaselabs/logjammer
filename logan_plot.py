@@ -154,16 +154,19 @@ def plot_multiprocessing_worker(work):
 
 
 def plot_multiprocessing_join(args, scan_info, results):
+    with open(scan_info["timestamps_file_name"], 'r') as f:
+        timestamps = f.readlines()
+
     image_infos = []
     for result in results:
         for image_info in result["image_infos"] or []:
             image_infos.append(image_info)
 
-    with open(scan_info["timestamps_file_name"], 'r') as f:
-        timestamps = f.readlines()
-
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info)
+
+    for i, timestamp in enumerate(timestamps):
+        plot_timestamp(p, datetime_base, timestamp, i + 1)
 
     p.finish_image()
 
@@ -305,6 +308,7 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
         p.draw.polygon((x, p.cur_y,
                         x+2, p.cur_y+3,
                         x-2, p.cur_y+3), fill="#933")
+
 
 def plot_timestamp(p, datetime_base, timestamp, y):
     datetime_cur = parser.parse(timestamp, fuzzy=True)
