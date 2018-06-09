@@ -34,7 +34,7 @@ def plot(argv, args, scan_info):
             timestamp_first and timestamps_num_unique):
         return
 
-    if args.multiprocessing >= 0:
+    if False and args.multiprocessing >= 0:
         plot_multiprocessing_scan_info(args, scan_info)
     else:
         plot_scan_info(args, scan_info)
