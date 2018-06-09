@@ -374,7 +374,6 @@ def scan_multiprocessing_worker(work):
         "path": path,
         "chunk": chunk,
         "file_patterns": file_patterns,
-        "timestamps_num_unique": timestamp_info.num_unique,
         "timestamps_file_name": timestamp_info.file_name
     }
 
