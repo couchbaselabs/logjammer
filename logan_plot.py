@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- mode: Python;-*-
 
+import copy
 import bisect
 import json
 import multiprocessing
@@ -115,6 +116,7 @@ def plot_multiprocessing_worker(work):
 
                 p.plot_point(x, y)
 
+            args = copy.copy(args)
             args.path = [path]
             args.scan_start = scan_start
             args.scan_length = scan_length
