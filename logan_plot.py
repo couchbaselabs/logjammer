@@ -135,12 +135,12 @@ def plot_multiprocessing_worker(work):
                 v_state.last_timestamp = timestamp
                 v_state.last_y = y
 
+            # Driver for visitor callbacks comes from logmerge.
             args = copy.copy(args)
             args.path = [path]
             args.scan_start = scan_start
             args.scan_length = scan_length
 
-            # Driver for visitor callbacks comes from logmerge.
             logmerge.main_with_args(args, visitor=v, bar=bar)
 
         p.finish_image()

@@ -214,12 +214,8 @@ def scan_multiprocessing_worker(work):
 
         update_patterns_with_entry(patterns, timestamp, entry, timestamp_info)
 
-    args = copy.copy(args)
-    args.path = [path]
-    args.scan_start = scan_start
-    args.scan_length = scan_length
-
     # Main driver of visitor callbacks is reused from logmerge.
+    args = copy.copy(args)
     args.path = [path]
     args.scan_start = scan_start
     args.scan_length = scan_length
