@@ -121,6 +121,8 @@ def plot_multiprocessing_worker(work):
 
                 x = x_base + rank
 
+                timestamp = timestamp[:timestamp_prefix_len]
+
                 if timestamp == v_state.last_timestamp:
                     y = v_state.last_y
                 else:
@@ -265,7 +267,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
-        p.cur_y = 1
+        p.cur_y = 0
 
         # Draw background of vertical lines to demarcate each file in
         # each dir, and draw dir and file_name text.
@@ -312,7 +314,9 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
 
     x = x_base + rank
 
-    timestamp_changed, im_changed = p.plot(timestamp[:timestamp_prefix_len], x)
+    timestamp = timestamp[:timestamp_prefix_len]
+
+    timestamp_changed, im_changed = p.plot(timestamp, x)
 
     if timestamp_changed:
         plot_timestamp(p, datetime_base, timestamp, p.cur_y)
@@ -322,15 +326,6 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
         p.draw.polygon((x, p.cur_y,
                         x+2, p.cur_y+3,
                         x-2, p.cur_y+3), fill="#933")
-
-
-def plot_timestamp(p, datetime_base, timestamp, y):
-    datetime_cur = parser.parse(timestamp, fuzzy=True)
-
-    delta_seconds = int((datetime_cur - datetime_base).total_seconds())
-
-    p.draw.line((0, y, timestamp_gutter_width - 1, y),
-                fill=to_rgb(delta_seconds))
 
 
 def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
@@ -349,22 +344,35 @@ def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
     return pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
 
 
-class Plotter(object):
-    white = "white"
+def plot_timestamp(p, datetime_base, timestamp, y):
+    datetime_cur = parser.parse(timestamp, fuzzy=True)
 
-    def __init__(self, prefix, width, height, on_start_image, on_finish_image):
+    delta_seconds = int((datetime_cur - datetime_base).total_seconds())
+
+    p.draw.line((0, y, timestamp_gutter_width - 1, y),
+                fill=to_rgb(delta_seconds))
+
+
+class Plotter(object):
+    def __init__(self, prefix, width, height,
+                 on_start_image, on_finish_image):
         self.prefix = prefix
+
         self.width = width
         self.height = height
+
         self.on_start_image = on_start_image
         self.on_finish_image = on_finish_image
 
         self.im = None
         self.im_num = 0
         self.im_name = None
+
         self.draw = None
+
         self.cur_y = 0
         self.cur_timestamp = None
+
         self.plot_num = 0
 
         self.min_x = self.width
@@ -377,7 +385,9 @@ class Plotter(object):
         self.im = Image.new("RGB", (self.width, self.height))
         self.im_name = self.prefix + "-" + \
             "{0:0>3}".format(self.im_num) + ".png"
+
         self.draw = ImageDraw.Draw(self.im)
+
         self.cur_y = 0
         self.cur_timestamp = None
 
@@ -393,7 +403,9 @@ class Plotter(object):
         self.im = None
         self.im_num += 1
         self.im_name = None
+
         self.draw = None
+
         self.cur_y = None
 
     # Plot a point at (x, cur_y), advancing cur_y if the timestamp changed.
@@ -420,7 +432,7 @@ class Plotter(object):
     def plot_point(self, x, y):
         x = timestamp_gutter_width + x
 
-        self.draw.point((x, y), fill=self.white)
+        self.draw.point((x, y), fill="white")
 
         self.min_x = min(self.min_x, x)
         self.min_y = min(self.min_y, y)
