@@ -97,53 +97,61 @@ def plot_multiprocessing_worker(work):
 
     image_infos = None
 
-    if patterns and pattern_ranks:
-        dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
-            plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
+    dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
+        plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
 
-        rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
-        if rank_dir is not None:
-            x_base = rank_dir * width_dir
+    rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
 
-            class VState:
-                def __init__(self):
-                    self.last_timestamp = None
-                    self.last_y = None
+    x_base = rank_dir * width_dir
 
-            v_state = VState()
+    class VState:
+        def __init__(self):
+            self.i = 0  # Total entries seen so far.
+            self.n = 0  # Total entry_size's seen so far.
 
-            def v(path_ignored, timestamp, entry, entry_size):
-                if (not timestamp) or (not entry):
-                    return
+            self.last_timestamp = None
+            self.last_y = None
 
-                rank = entry_pattern_rank(
-                    patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
+    v_state = VState()
 
-                x = x_base + rank
+    def v(path_ignored, timestamp, entry, entry_size):
+        if (not timestamp) or (not entry):
+            return
 
-                timestamp = timestamp[:timestamp_prefix_len]
+        rank = entry_pattern_rank(
+            patterns, pattern_ranks, pattern_ranks_key_prefix, entry)
 
-                if timestamp == v_state.last_timestamp:
-                    y = v_state.last_y
-                else:
-                    # TODO: This is inefficient, as timestamps are ordered,
-                    # and callback timestamp arg is always increasing.
-                    y = bisect.bisect_left(timestamps, timestamp) + 1
+        x = x_base + rank
 
-                p.plot_point(x, y)
+        timestamp = timestamp[:timestamp_prefix_len]
 
-                v_state.last_timestamp = timestamp
-                v_state.last_y = y
+        if timestamp == v_state.last_timestamp:
+            y = v_state.last_y
+        else:
+            # TODO: This is inefficient, as timestamps are ordered,
+            # and callback timestamp arg is always increasing.
+            y = bisect.bisect_left(timestamps, timestamp) + 1
 
-            # Driver for visitor callbacks comes from logmerge.
-            args = copy.copy(args)
-            args.path = [path]
-            args.scan_start = scan_start
-            args.scan_length = scan_length
+        p.plot_point(x, y)
 
-            logmerge.main_with_args(args, visitor=v, bar=bar)
+        v_state.last_timestamp = timestamp
+        v_state.last_y = y
 
-        p.finish_image()
+        v_state.i += 1
+        v_state.n += entry_size
+
+        if bar and v_state.i % 2000 == 0:
+            bar.update(v_state.n)
+
+    # Driver for visitor callbacks comes from logmerge.
+    args = copy.copy(args)
+    args.path = [path]
+    args.scan_start = scan_start
+    args.scan_length = scan_length
+
+    logmerge.main_with_args(args, visitor=v, bar=bar)
+
+    p.finish_image()
 
     q.put("done", False)
 
