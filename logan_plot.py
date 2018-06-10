@@ -249,7 +249,10 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
 
     height_text = 15
 
-    datetime_base = parser.parse(timestamp_first, fuzzy=True)
+    timestamp_first_nearest_minute = \
+        timestamp_first[:len("2010-01-01T00:00:")] + "00"
+
+    datetime_base = parser.parse(timestamp_first_nearest_minute, fuzzy=True)
 
     datetime_2010 = parser.parse("2010-01-01 00:00:00")
 
