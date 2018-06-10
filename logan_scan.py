@@ -13,9 +13,6 @@ from logan_util import chunkify_path_sizes, \
     multiprocessing_wait, QueueBar, git_describe_long
 
 
-timestamp_gutter_width = 1  # In pixels.
-
-
 def scan(argv, args):
     if args.multiprocessing >= 0:
         file_patterns, timestamps_num_unique, timestamps_file_name = \
@@ -119,8 +116,7 @@ def scan(argv, args):
         "pattern_ranks":               pattern_ranks,
         "timestamp_first":             timestamp_first,
         "timestamps_num_unique":       timestamps_num_unique,
-        "timestamps_file_name":        timestamps_file_name,
-        "timestamp_gutter_width":      timestamp_gutter_width
+        "timestamps_file_name":        timestamps_file_name
     }
 
     return scan_info

@@ -40,6 +40,15 @@ def plot(argv, args, scan_info):
     else:
         plot_scan_info(args, scan_info)
 
+    plot_info = dict(scan_info)  # Copy before modifying.
+
+    plot_info["timestamp_gutter_width"] = timestamp_gutter_width
+
+    # Too big / unused for plot_info.
+    del plot_info["file_patterns"]
+
+    return plot_info
+
 
 # Plot of the scan_info using multiprocessing.
 def plot_multiprocessing_scan_info(args, scan_info):

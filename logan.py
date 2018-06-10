@@ -58,16 +58,13 @@ def main_steps(argv, args, scan_info=None):
     if "plot" in steps:
         print "\n============================================"
         print "plotting..."
-        plot(argv, args, scan_info)
+        plot_info = plot(argv, args, scan_info)
 
-        plot_info = dict(scan_info)  # Copy before modifying.
-        del plot_info["file_patterns"]  # Too big / unused for plot_info.
-
-        plot_file = args.out_prefix + ".json"
-        with open(plot_file, 'w') as f:
+        plot_info_file = args.out_prefix + ".json"
+        with open(plot_info_file, 'w') as f:
             f.write(json.dumps(plot_info))
 
-        print "\nwrote", plot_file
+        print "\nwrote", plot_info_file
 
     if "http" in steps:
         print "\n============================================"
