@@ -6,7 +6,7 @@ import os
 import signal
 import sys
 
-from logan_args import new_argument_parser
+from logan_args import new_argument_parser, prep_args
 from logan_http import http_server
 from logan_plot import plot
 from logan_scan import scan
@@ -16,31 +16,20 @@ from logan_util import byteify
 def main(argv):
     args = new_argument_parser().parse_args(argv[1:])
 
-    if (args.steps is None) and args.http:
-        args.steps = "http"
+    args = prep_args(args)
 
-    if (args.steps is None):
-        args.steps = "scan,save,plot"
-
-    # Since logan invokes logmerge, set any args needed by logmerge.
-
-    args.out = os.devnull
-    args.fields = None
-    args.max_entries = None
-    args.max_lines_per_entry = 0.5  # Only need first lines for logan.
-    args.scan_start = None
-    args.scan_length = None
-    args.single_line = None
-    args.timestamp_prefix = None
-    args.wrap = None
-    args.wrap_indent = None
+    if args.multiprocessing >= 0:
+        signal.signal(signal.SIGINT, on_sigint)
 
     main_steps(argv, args)
 
 
 def main_steps(argv, args, scan_info=None):
-    if args.multiprocessing >= 0:
-        signal.signal(signal.SIGINT, on_sigint)
+    if (args.steps is None) and args.http:
+        args.steps = "http"
+
+    if (args.steps is None):
+        args.steps = "scan,save,plot"
 
     steps = args.steps.split(",")
 
