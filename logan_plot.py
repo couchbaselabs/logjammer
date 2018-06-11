@@ -44,7 +44,7 @@ def plot(argv, args, scan_info):
 
     plot_info["timestamp_gutter_width"] = timestamp_gutter_width
 
-    # Too big / unused for plot_info.
+    # The file_patterns are too big / unused for plot_info so remove.
     del plot_info["file_patterns"]
 
     return plot_info
