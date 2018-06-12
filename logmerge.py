@@ -636,6 +636,8 @@ class EntryReader(object):
 def parse_entry_timestamp(line):
     """Returns the timestamp found in an entry's first line"""
 
+    line = line[:50]
+
     m = re_entry_timestamp.match(line)
     if m:
         return m.group(1)
