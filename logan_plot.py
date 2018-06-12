@@ -77,20 +77,54 @@ def plot_multiprocessing_scan_info(args, scan_info):
     return plot_multiprocessing_join(args, scan_info, results.get())
 
 
+last_scan_info_file_name = None
+last_scan_info = None
+
+last_timestamps_file_name = None
+last_timestmps = None
+
+
 # Worker that plots a single chunk.
 def plot_multiprocessing_worker(work):
+    try:
+        return plot_multiprocessing_worker_actual(work)
+    except Exception as e:
+        print "plot_multiprocessing_worker exception", e
+
+
+def plot_multiprocessing_worker_actual(work):
     chunk, args, q = work
 
     path, scan_start, scan_length = chunk
 
     file_name = os.path.basename(path)
 
-    with open(args.out_prefix + "-scan.json", 'r') as f:
-        scan_info = byteify(json.load(f, object_hook=byteify),
-                            ignore_dicts=True)
+    global last_scan_info_file_name
+    global last_scan_info
 
-    with open(scan_info["timestamps_file_name"], 'r') as f:
-        timestamps = f.readlines()
+    scan_info_file_name = args.out_prefix + "-scan.json"
+    if scan_info_file_name == last_scan_info_file_name and last_scan_info:
+        scan_info = last_scan_info
+    else:
+        with open(scan_info_file_name, 'r') as f:
+            scan_info = byteify(json.load(f, object_hook=byteify),
+                                ignore_dicts=True)
+
+            last_scan_info_file_name = scan_info_file_name
+            last_scan_info = scan_info
+
+    global last_timestamps_file_name
+    global last_timestamps
+
+    timestamps_file_name = scan_info["timestamps_file_name"]
+    if timestamps_file_name == last_timestamps_file_name and last_timestamps:
+        timestamps = last_timestamps
+    else:
+        with open(timestamps_file_name, 'r') as f:
+            timestamps = f.readlines()
+
+            last_timestamps_file_name = timestamps_file_name
+            last_timestamps = timestamps
 
     patterns = scan_info["file_patterns"].get(file_name)
 
@@ -104,7 +138,7 @@ def plot_multiprocessing_worker(work):
 
     bar = QueueBar(chunk, q)
 
-    image_infos = None
+    image_infos = []
 
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
@@ -182,14 +216,19 @@ def plot_multiprocessing_join(args, scan_info, results):
     for i, timestamp in enumerate(timestamps):
         plot_timestamp(p, datetime_base, timestamp, i + 1)
 
+    results.sort()
+
     for result in results:
-        for image_info in result["image_infos"] or []:
+        if not result:
+            continue
+
+        for image_info in result["image_infos"]:
             image_file_name, bounds = image_info
             if not image_file_name:
                 continue
 
             min_x, min_y, max_x, max_y = bounds
-            if min_x < max_x and min_y < max_y:
+            if min_x <= max_x and min_y <= max_y:
                 chunk_image = Image.open(image_file_name)
 
                 p.im.paste(chunk_image.crop(bounds), bounds)

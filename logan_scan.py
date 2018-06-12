@@ -192,6 +192,13 @@ def scan_multiprocessing_join(results, out_prefix):
 
 # Worker that scans a single chunk.
 def scan_multiprocessing_worker(work):
+    try:
+        return scan_multiprocessing_worker_actual(work)
+    except Exception as e:
+        print "scan_multiprocessing_worker exception", e
+
+
+def scan_multiprocessing_worker_actual(work):
     chunk, args, q = work
 
     path, scan_start, scan_length = chunk
