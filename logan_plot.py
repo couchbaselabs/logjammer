@@ -229,9 +229,11 @@ def plot_multiprocessing_join(args, scan_info, results):
 
             min_x, min_y, max_x, max_y = bounds
             if min_x <= max_x and min_y <= max_y:
+                bounds_actual = (min_x, min_y, max_x + 1, max_y + 1)
+
                 chunk_image = Image.open(image_file_name)
 
-                p.im.paste(chunk_image.crop(bounds), bounds)
+                p.im.paste(chunk_image.crop(bounds_actual), bounds_actual)
 
                 chunk_image.close()
 
