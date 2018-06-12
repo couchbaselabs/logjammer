@@ -92,6 +92,28 @@ def plot_multiprocessing_worker(work):
         print "plot_multiprocessing_worker exception", e
 
 
+def plot_multiprocessing_worker_profile(work):
+    try:
+        import cProfile
+        import pstats
+        import StringIO
+
+        pr = cProfile.Profile()
+        pr.enable()
+
+        rv = plot_multiprocessing_worker_actual(work)
+
+        pr.disable()
+        s = StringIO.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats("tottime")
+        ps.print_stats()
+        print s.getvalue()
+
+        return rv
+    except Exception as e:
+        print "plot_multiprocessing_worker exception", e
+
+
 def plot_multiprocessing_worker_actual(work):
     chunk, args, q = work
 
