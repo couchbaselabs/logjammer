@@ -141,7 +141,8 @@ def plot_multiprocessing_worker_actual(work):
     image_infos = []
 
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
-        plot_init(args.path, args.suffix, chunk_out_prefix, scan_info)
+        plot_init(args.path, args.suffix, chunk_out_prefix, scan_info,
+                  crop_on_finish=True)
 
     rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
 
@@ -229,11 +230,9 @@ def plot_multiprocessing_join(args, scan_info, results):
 
             min_x, min_y, max_x, max_y = bounds
             if min_x <= max_x and min_y <= max_y:
-                bounds_actual = (min_x, min_y, max_x + 1, max_y + 1)
-
                 chunk_image = Image.open(image_file_name)
 
-                p.im.paste(chunk_image.crop(bounds_actual), bounds_actual)
+                p.im.paste(chunk_image, (min_x, min_y))
 
                 chunk_image.close()
 
@@ -285,7 +284,7 @@ def plot_scan_info(args, scan_info):
     return image_infos
 
 
-def plot_init(paths_in, suffix, out_prefix, scan_info):
+def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     timestamp_first = scan_info["timestamp_first"]
@@ -358,7 +357,9 @@ def plot_init(paths_in, suffix, out_prefix, scan_info):
     def on_finish_image(p):
         image_infos.append((p.im_name, (p.min_x, p.min_y, p.max_x, p.max_y)))
 
-    p = Plotter(out_prefix, width, height, on_start_image, on_finish_image)
+    p = Plotter(out_prefix, width, height,
+                on_start_image, on_finish_image,
+                crop_on_finish=crop_on_finish)
 
     p.start_image()
 
@@ -413,7 +414,7 @@ def plot_timestamp(p, datetime_base, timestamp, y):
 
 class Plotter(object):
     def __init__(self, prefix, width, height,
-                 on_start_image, on_finish_image):
+                 on_start_image, on_finish_image, crop_on_finish):
         self.prefix = prefix
 
         self.width = width
@@ -421,6 +422,8 @@ class Plotter(object):
 
         self.on_start_image = on_start_image
         self.on_finish_image = on_finish_image
+
+        self.crop_on_finish = crop_on_finish
 
         self.im = None
         self.im_num = 0
@@ -453,10 +456,19 @@ class Plotter(object):
             self.on_start_image(self)
 
     def finish_image(self):
-        if self.on_finish_image:
-            self.on_finish_image(self)
+        if self.min_x <= self.max_x and \
+           self.min_y <= self.max_y:
+            if self.crop_on_finish:
+                c = self.im.crop((self.min_x, self.min_y,
+                                  self.max_x + 1, self.max_y + 1))
+                c.save(self.im_name)
+                c.close()
+            else:
+                self.im.save(self.im_name)
 
-        self.im.save(self.im_name)
+            if self.on_finish_image:
+                self.on_finish_image(self)
+
         self.im.close()
         self.im = None
         self.im_num += 1
