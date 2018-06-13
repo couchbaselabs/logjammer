@@ -26,6 +26,21 @@ def scan(argv, args):
     # Associate similar pattern info's.
     mark_similar_pattern_infos(file_patterns)
 
+    # Rank the pattern info's.
+    scan_info = rank_pattern_infos(file_patterns)
+
+    scan_info.update({
+        "git_describe_long":     git_describe_long(),
+        "argv":                  argv,
+        "paths":                 args.path,
+        "timestamps_num_unique": timestamps_num_unique,
+        "timestamps_file_name":  timestamps_file_name
+    })
+
+    return scan_info
+
+
+def rank_pattern_infos(file_patterns):
     print "\n============================================"
 
     print "len(file_patterns)", len(file_patterns)
@@ -110,22 +125,15 @@ def scan(argv, args):
 
         print "  ", pattern_uniques[k], "-", k
 
-    scan_info = {
-        "git_describe_long":           git_describe_long(),
-        "argv":                        argv,
-        "paths":                       args.path,
+    return {
         "file_patterns":               file_patterns,
         "num_entries":                 num_entries,
         "num_pattern_infos":           num_pattern_infos,
         "num_pattern_infos_base":      num_pattern_infos_base,
         "num_pattern_infos_base_none": num_pattern_infos_base_none,
         "pattern_ranks":               pattern_ranks,
-        "timestamp_first":             timestamp_first,
-        "timestamps_num_unique":       timestamps_num_unique,
-        "timestamps_file_name":        timestamps_file_name
+        "timestamp_first":             timestamp_first
     }
-
-    return scan_info
 
 
 def scan_multiprocessing(args):
