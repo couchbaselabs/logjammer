@@ -423,7 +423,7 @@ def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
     pattern_info = patterns[pattern_key]
 
     if pattern_info["pattern_base"]:
-        pattern_key = str(pattern_info["pattern_base"])
+        pattern_key = pattern_info["pattern_base"]
 
     return pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
 

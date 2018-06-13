@@ -57,6 +57,8 @@ def scan(argv, args):
         for i, pattern_key in enumerate(pattern_keys):
             pattern_info = patterns[pattern_key]
 
+            del pattern_info["pattern"]
+
             pattern_info_total = pattern_info["total"]
 
             num_entries += pattern_info_total
@@ -64,6 +66,8 @@ def scan(argv, args):
 
             if pattern_info["pattern_base"]:
                 pattern_key = str(pattern_info["pattern_base"])
+
+                pattern_info["pattern_base"] = pattern_key
 
                 num_pattern_infos_base += 1
             else:
