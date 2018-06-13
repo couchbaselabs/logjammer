@@ -300,7 +300,7 @@ def prepare_heap_entries(paths, path_prefix,
                 zfs[zp] = zf
 
             f = zf.open(path[zip_suffix+5:], 'r')
-            f_size = zf.file_size
+            f_size = zf.getinfo(path[zip_suffix+5:]).file_size
         else:
             f = open(path, 'r')
             f_size = os.path.getsize(path)
