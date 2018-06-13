@@ -261,9 +261,11 @@ def plot_multiprocessing_join(args, scan_info, results):
 
             os.remove(image_file_name)
 
+    p.im.save(p.im_name)
+
     p.finish_image()
 
-    print image_infos
+    return image_infos
 
 
 # Single-threaded plot of the scan_info.
