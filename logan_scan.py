@@ -6,6 +6,8 @@ import multiprocessing
 import os
 import re
 import subprocess
+import sys
+import traceback
 
 import logmerge
 
@@ -195,7 +197,8 @@ def scan_multiprocessing_worker(work):
     try:
         return scan_multiprocessing_worker_actual(work)
     except Exception as e:
-        print "scan_multiprocessing_worker exception", e
+        print "scan_multiprocessing_worker exception", e, sys.exc_info()
+        traceback.print_stack()
 
 
 def scan_multiprocessing_worker_actual(work):
@@ -360,24 +363,24 @@ pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
 # addresses are also matched.
 pattern_num_ish = [
-    ("hex", r"0x[a-f0-9][a-f0-9]+"),
-    ("hex", r"0x[A-F0-9][A-F0-9]+"),
-    ("rev", pattern_rev),
-    ("uid", pattern_uid),
-    ("uid", pattern_uid1a),
-    ("uid", pattern_uid1b),
-    ("ymd", r"\d\d\d\d-\d\d-\d\d"),
-    ("dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d\d\d\dZ"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
-    ("hms", r"T?\d\d:\d\d:\d\d"),
-    ("ip4", r"\d+\.\d+\.\d+\.\d+"),
-    ("idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # Numbered identifier, like "vb8".
-    ("neg", r"-\d[\d\.]*"),               # Negative dotted number.
-    ("pos", r"\d[\d\.]*")]                # Positive dotted number.
+    ("#hex", r"0x[a-f0-9][a-f0-9]+"),
+    ("#hex", r"0x[A-F0-9][A-F0-9]+"),
+    ("#rev", pattern_rev),
+    ("#uid", pattern_uid),
+    ("#uid", pattern_uid1a),
+    ("#uid", pattern_uid1b),
+    ("#ymd", r"\d\d\d\d-\d\d-\d\d"),
+    ("#dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
+    ("#hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
+    ("#hms", r"T?\d\d:\d\d:\d\d\.\d\d\d\d\d\dZ"),
+    ("#hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d:\d\d"),
+    ("#hms", r"T?\d\d:\d\d:\d\d\.\d\d\d-\d\d"),
+    ("#hms", r"T?\d\d:\d\d:\d\d\.\d\d\d"),
+    ("#hms", r"T?\d\d:\d\d:\d\d"),
+    ("#ip4", r"\d+\.\d+\.\d+\.\d+"),
+    ("#idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # Numbered identifier, like "vb8".
+    ("#neg", r"-\d[\d\.]*"),               # Negative dotted number.
+    ("#pos", r"\d[\d\.]*")]                # Positive dotted number.
 
 pattern_num_ish_joined = "(" + \
                          "|".join(["(" + p[1] + ")"
@@ -433,7 +436,7 @@ def entry_to_pattern(entry):
                     break
                 j += 1
 
-            pattern.append("#" + pattern_num_ish[num_ish_kind][0])
+            pattern.append(pattern_num_ish[num_ish_kind][0])
 
             i += 1 + len(pattern_num_ish)
 

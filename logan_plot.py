@@ -6,6 +6,8 @@ import bisect
 import json
 import multiprocessing
 import os
+import sys
+import traceback
 
 from dateutil import parser
 
@@ -89,7 +91,8 @@ def plot_multiprocessing_worker(work):
     try:
         return plot_multiprocessing_worker_actual(work)
     except Exception as e:
-        print "plot_multiprocessing_worker exception", e
+        print "plot_multiprocessing_worker exception", e, sys.exc_info()
+        traceback.print_stack()
 
 
 def plot_multiprocessing_worker_profile(work):
