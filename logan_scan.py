@@ -136,6 +136,9 @@ def rank_pattern_infos(file_patterns):
     }
 
 
+scan_multiprocessing_debug = False
+
+
 def scan_multiprocessing(args):
     paths, total_size, path_sizes = \
         logmerge.expand_paths(args.path, args.suffix)
@@ -143,23 +146,26 @@ def scan_multiprocessing(args):
     chunks = chunkify_path_sizes(path_sizes,
                                  (args.chunk_size or 0) * 1024 * 1024)
 
-    q = multiprocessing.Manager().Queue()
+    if not scan_multiprocessing_debug:
+        pool_processes = args.multiprocessing or multiprocessing.cpu_count()
 
-    pool_processes = args.multiprocessing or multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes=pool_processes)
 
-    pool = multiprocessing.Pool(processes=pool_processes)
+        q = multiprocessing.Manager().Queue()
 
-    results = pool.map_async(
-        scan_multiprocessing_worker,
-        [(chunk, args, q) for chunk in chunks])
+        results = pool.map_async(scan_multiprocessing_worker,
+                                 [(chunk, args, q) for chunk in chunks])
+        pool.close()
+        multiprocessing_wait(q, len(chunks), total_size)
+        pool.join()
 
-    pool.close()
+        results = results.get()
+    else:
+        # Single threaded mode to help with debugging.
+        results = map(scan_multiprocessing_worker_actual,
+                      [(chunk, args, None) for chunk in chunks])
 
-    multiprocessing_wait(q, len(chunks), total_size)
-
-    pool.join()
-
-    return scan_multiprocessing_join(results.get(), args.out_prefix)
+    return scan_multiprocessing_join(results, args.out_prefix)
 
 
 # Joins all the results received from workers.
@@ -243,7 +249,11 @@ def scan_multiprocessing_worker_actual(work):
     args.scan_start = scan_start
     args.scan_length = scan_length
 
-    logmerge.main_with_args(args, visitor=v, bar=QueueBar(chunk, q))
+    bar = None
+    if q:
+        bar = QueueBar(chunk, q)
+
+    logmerge.main_with_args(args, visitor=v, bar=bar)
 
     timestamp_info.flush()
     timestamp_info.close()
@@ -253,7 +263,8 @@ def scan_multiprocessing_worker_actual(work):
     if patterns:
         file_patterns[os.path.basename(path)] = patterns
 
-    q.put("done", False)
+    if q:
+        q.put("done", False)
 
     return {
         "path": path,
