@@ -215,11 +215,12 @@ def scan_multiprocessing_worker_actual(work):
 
     patterns = {}
 
-    timestamp_info = TimestampInfo(
-        args.out_prefix + "-chunk-" + \
+    timestamp_file_name = args.out_prefix + "-chunk-" + \
         path.replace("/", "_").replace("-", "_") + "-" + \
         str(scan_start) + "-" + str(scan_length) + \
-        "-timestamps.txt")
+        "-timestamps.txt"
+
+    timestamp_info = TimestampInfo(timestamp_file_name)
 
     # Optimize to ignore a path check, as the path should equal path_ignored.
     def v(path_ignored, timestamp, entry, entry_size):
