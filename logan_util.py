@@ -13,6 +13,12 @@ def chunkify_path_sizes(path_sizes, default_chunk_size):
     chunks = []
 
     for path, size in path_sizes.iteritems():
+        if path.find(".zip/") > 0:
+            # A zip file doesn't support seek() needed for chunk processing,
+            # so treat the entire file as one chunk.
+            chunks.append((path, 0, size))
+            continue
+
         chunk_size = default_chunk_size or size
 
         x = 0
