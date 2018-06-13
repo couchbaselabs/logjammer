@@ -193,6 +193,9 @@ def scan_multiprocessing_join(results, out_prefix):
     for x in timestamps_file_names:
         os.remove(x)
 
+    subprocess.check_output(
+        ['sort', '--output=' + timestamps_file_name, timestamps_file_name])
+
     return file_patterns, timestamps_num_unique, timestamps_file_name
 
 
@@ -213,8 +216,9 @@ def scan_multiprocessing_worker_actual(work):
     patterns = {}
 
     timestamp_info = TimestampInfo(
-        args.out_prefix + "-chunk-" +
-        str(chunk).replace('/', '_').replace('-', '_').replace(' ', '') +
+        args.out_prefix + "-chunk-" + \
+        path.replace("/", "_").replace("-", "_") + "-" + \
+        str(scan_start) + "-" + str(scan_length) + \
         "-timestamps.txt")
 
     # Optimize to ignore a path check, as the path should equal path_ignored.

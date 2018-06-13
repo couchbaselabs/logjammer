@@ -21,7 +21,7 @@ from logan_util import byteify, chunkify_path_sizes, \
     multiprocessing_wait, QueueBar
 
 
-timestamp_gutter_width = 1  # In pixels.
+timestamp_gutter_width = 4  # In pixels.
 
 max_image_height = 0  # 0 means unlimited plot image height.
 
