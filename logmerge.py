@@ -272,7 +272,15 @@ def expand_paths(paths, suffix):
                 path_sizes[zpath] = info.file_size
         else:
             rv.append(path)
-            size = os.path.getsize(path)
+
+            zip_suffix = path.find(".zip/")
+            if zip_suffix > 0:
+                zf = zipfile.ZipFile(path[0:zip_suffix+4], 'r')
+                size = zf.getinfo(path[zip_suffix+5:]).file_size
+                zf.close()
+            else:
+                size = os.path.getsize(path)
+
             total_size += size
             path_sizes[path] = size
 
