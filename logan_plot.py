@@ -233,31 +233,38 @@ def plot_multiprocessing_join(args, scan_info, results):
         timestamps = f.readlines()
 
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
-        plot_init(args.path, args.suffix, args.out_prefix, scan_info)
+        plot_init(args.path, args.suffix, args.out_prefix, scan_info,
+                  max_image_height=0)
 
     for i, timestamp in enumerate(timestamps):
         plot_timestamp(p, datetime_base, timestamp, i + 1)
 
-    results.sort()
+    image_infos = []
 
     for result in results:
         if not result:
             continue
 
         for image_info in result["image_infos"]:
-            image_file_name, bounds = image_info
-            if not image_file_name:
-                continue
+            image_infos.append(image_info)
 
-            min_x, min_y, max_x, max_y, beg_y = bounds
-            if min_x <= max_x and min_y <= max_y:
-                chunk_image = Image.open(image_file_name)
+    # Sort image_infos by beg_y ASC, image_file_name ASC.
+    image_infos.sort(key=lambda result: (result[1][4], result[0]))
 
-                p.im.paste(chunk_image, (min_x, min_y + beg_y))
+    for image_info in image_infos:
+        image_file_name, bounds = image_info
+        if not image_file_name:
+            continue
 
-                chunk_image.close()
+        min_x, min_y, max_x, max_y, beg_y = bounds
+        if min_x <= max_x and min_y <= max_y:
+            chunk_image = Image.open(image_file_name)
 
-            os.remove(image_file_name)
+            p.im.paste(chunk_image, (min_x, min_y + beg_y))
+
+            chunk_image.close()
+
+        os.remove(image_file_name)
 
     p.im.save(p.im_name)
 
@@ -307,7 +314,8 @@ def plot_scan_info(args, scan_info):
     return image_infos
 
 
-def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False):
+def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False,
+              max_image_height=max_image_height):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     timestamp_first = scan_info["timestamp_first"]
