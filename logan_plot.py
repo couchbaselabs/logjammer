@@ -513,7 +513,13 @@ class Plotter(object):
 
         self.draw = None
 
-        self.beg_y = self.cur_y
+        self.beg_y = max(self.cur_y - 1, 0)
+
+        self.min_x = self.width
+        self.min_y = self.height
+
+        self.max_x = -1
+        self.max_y = -1
 
     # Plot a point at (x, cur_y), advancing cur_y if the timestamp changed.
     def plot(self, timestamp, x):
