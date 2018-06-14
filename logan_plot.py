@@ -159,10 +159,6 @@ def plot_multiprocessing_worker_actual(work):
         path.replace("/", "_").replace("-", "_") + "-" + \
         str(scan_start) + "-" + str(scan_length)
 
-    bar = QueueBar(chunk, q)
-
-    image_infos = []
-
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, chunk_out_prefix, scan_info,
                   crop_on_finish=True)
@@ -180,6 +176,8 @@ def plot_multiprocessing_worker_actual(work):
             self.last_y = None
 
     v_state = VState()
+
+    bar = QueueBar(chunk, q)
 
     def v(path_ignored, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
@@ -251,11 +249,11 @@ def plot_multiprocessing_join(args, scan_info, results):
             if not image_file_name:
                 continue
 
-            min_x, min_y, max_x, max_y = bounds
+            min_x, min_y, max_x, max_y, beg_y = bounds
             if min_x <= max_x and min_y <= max_y:
                 chunk_image = Image.open(image_file_name)
 
-                p.im.paste(chunk_image, (min_x, min_y))
+                p.im.paste(chunk_image, (min_x, min_y + beg_y))
 
                 chunk_image.close()
 
@@ -349,7 +347,6 @@ def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False):
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
-        p.cur_y = 0
 
         # Draw background of vertical lines to demarcate each file in
         # each dir, and draw dir and file_name text.
@@ -380,7 +377,9 @@ def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False):
                 y_text += height_text
 
     def on_finish_image(p):
-        image_infos.append((p.im_name, (p.min_x, p.min_y, p.max_x, p.max_y)))
+        image_infos.append((p.im_name, (p.min_x, p.min_y,
+                                        p.max_x, p.max_y,
+                                        p.beg_y)))
 
     p = Plotter(out_prefix, width, height,
                 on_start_image, on_finish_image,
@@ -405,11 +404,11 @@ def plot_entry(patterns, pattern_ranks, pattern_ranks_key_prefix,
     if timestamp_changed:
         plot_timestamp(p, datetime_base, timestamp, p.cur_y)
 
-    if (not im_changed) and (re_erro.search(entry[0]) is not None):
+    if re_erro.search(entry[0]) is not None:
         # Mark ERRO with a red triangle.
-        p.draw.polygon((x, p.cur_y,
-                        x+2, p.cur_y+3,
-                        x-2, p.cur_y+3), fill="#933")
+        p.draw.polygon((x, p.cur_y - p.beg_y,
+                        x+2, p.cur_y - p.beg_y + 3,
+                        x-2, p.cur_y - p.beg_y + 3), fill="#933")
 
 
 def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
@@ -428,10 +427,12 @@ def entry_pattern_rank(patterns, pattern_ranks, pattern_ranks_key_prefix,
     return pattern_ranks.get(pattern_ranks_key_prefix + pattern_key)
 
 
-def plot_timestamp(p, datetime_base, timestamp, y):
+def plot_timestamp(p, datetime_base, timestamp, y_global):
     datetime_cur = parser.parse(timestamp, fuzzy=True)
 
     delta_seconds = int((datetime_cur - datetime_base).total_seconds())
+
+    y = y_global - p.beg_y
 
     p.draw.line((0, y, timestamp_gutter_width - 1, y),
                 fill=to_rgb(delta_seconds))
@@ -456,7 +457,10 @@ class Plotter(object):
 
         self.draw = None
 
-        self.cur_y = 0
+        self.cur_y = 0  # The current line being plotted in global space.
+
+        self.beg_y = 0  # The current image y-origin in global space.
+
         self.cur_timestamp = None
 
         self.plot_num = 0
@@ -474,7 +478,6 @@ class Plotter(object):
 
         self.draw = ImageDraw.Draw(self.im)
 
-        self.cur_y = 0
         self.cur_timestamp = None
 
         if self.on_start_image:
@@ -482,7 +485,8 @@ class Plotter(object):
 
     def finish_image(self):
         if self.min_x <= self.max_x and \
-           self.min_y <= self.max_y:
+           self.min_y <= self.max_y and \
+           self.beg_y is not None:
             if self.crop_on_finish:
                 c = self.im.crop((self.min_x, self.min_y,
                                   self.max_x + 1, self.max_y + 1))
@@ -501,7 +505,7 @@ class Plotter(object):
 
         self.draw = None
 
-        self.cur_y = None
+        self.beg_y = self.cur_y
 
     # Plot a point at (x, cur_y), advancing cur_y if the timestamp changed.
     def plot(self, timestamp, x):
@@ -512,7 +516,7 @@ class Plotter(object):
             self.cur_y += 1  # Move to next line.
 
         cur_im_changed = False
-        if self.cur_y > self.height:
+        if (self.cur_y - self.beg_y) > self.height:
             cur_im_changed = True
 
             self.finish_image()
@@ -524,8 +528,10 @@ class Plotter(object):
 
         return cur_timestamp_changed, cur_im_changed
 
-    def plot_point(self, x, y):
+    def plot_point(self, x, y_global):
         x = timestamp_gutter_width + x
+
+        y = y_global - self.beg_y
 
         self.draw.point((x, y), fill="white")
 
