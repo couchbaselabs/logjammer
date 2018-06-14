@@ -315,6 +315,7 @@ def plot_scan_info(args, scan_info):
 
 
 def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False,
+              on_start_image=None, on_finish_image=None,
               max_image_height=max_image_height):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
@@ -351,7 +352,7 @@ def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False,
 
     image_infos = []
 
-    def on_start_image(p):
+    def my_on_start_image(p):
         # Encode the start_minutes_since_2010 at line 0's timestamp gutter.
         p.draw.line((0, 0, timestamp_gutter_width - 1, 0),
                     fill=to_rgb(start_minutes_since_2010))
@@ -384,13 +385,18 @@ def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False,
                             file_name, fill="#336")
                 y_text += height_text
 
-    def on_finish_image(p):
+        if on_start_image:
+            on_start_image(p)  # Invoke any chained callback.
+
+    def my_on_finish_image(p):
         image_infos.append((p.im_name, (p.min_x, p.min_y,
                                         p.max_x, p.max_y,
                                         p.beg_y)))
+        if on_finish_image:
+            on_finish_image(p)  # Invoke any chained callback.
 
     p = Plotter(out_prefix, width, height,
-                on_start_image, on_finish_image,
+                my_on_start_image, my_on_finish_image,
                 crop_on_finish=crop_on_finish)
 
     p.start_image()
