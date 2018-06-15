@@ -8,8 +8,8 @@ import logmerge
 
 
 # These are args known by logan but not by logmerge.
-arg_names = ["chunk-size", "http", "multiprocessing",
-             "out-prefix", "repo", "steps"]
+arg_names = ["chunk-size", "http", "max-image-height",
+             "multiprocessing", "out-prefix", "repo", "steps"]
 
 
 def new_argument_parser():
@@ -28,6 +28,12 @@ def new_argument_parser():
                     in order to allow the analysis / plot to be
                     interactively browsed;
                     the HTTP is the port number to listen on""")
+
+    ap.add_argument('--max-image-height', type=int, default=1200,
+                    help="""max height in pixels of output image plots,
+                    where multiple output plot files will be generated if
+                    needed; 0 means unconstrained output image height
+                    (default: %(default)s)""")
 
     ap.add_argument('--multiprocessing', type=int, default=0,
                     help="""number of processes to use for multiprocessing;

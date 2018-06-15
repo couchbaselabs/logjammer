@@ -23,8 +23,6 @@ from logan_util import byteify, chunkify_path_sizes, \
 
 timestamp_gutter_width = 4  # In pixels.
 
-max_image_height = 0  # 0 means unlimited plot image height.
-
 
 # Scan the log entries, plotting them based on the given scan info.
 def plot(argv, args, scan_info):
@@ -163,6 +161,7 @@ def plot_multiprocessing_worker_actual(work):
 
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, chunk_out_prefix, scan_info,
+                  max_image_height=args.max_image_height,
                   crop_on_finish=True)
 
     rank_dir = dirs.get(os.path.dirname(path[len(path_prefix):]))
@@ -181,6 +180,8 @@ def plot_multiprocessing_worker_actual(work):
 
     bar = QueueBar(chunk, q)
 
+    max_image_height = args.max_image_height
+
     def v(path_ignored, timestamp, entry, entry_size):
         if (not timestamp) or (not entry):
             return
@@ -198,6 +199,13 @@ def plot_multiprocessing_worker_actual(work):
             # TODO: This is inefficient, as timestamps are ordered,
             # and callback timestamp arg is always increasing.
             y = bisect.bisect_left(timestamps, timestamp) + 1
+
+            if max_image_height:
+                beg_y = max_image_height * int(y / max_image_height)
+                if p.beg_y != beg_y:
+                    p.finish_image()
+                    p.start_image()
+                    p.beg_y = beg_y
 
         p.plot_point(x, y)
 
@@ -236,7 +244,7 @@ def plot_multiprocessing_join(args, scan_info, results):
 
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
         plot_init(args.path, args.suffix, args.out_prefix, scan_info,
-                  max_image_height=0)
+                  max_image_height=args.max_image_height)
 
     image_infos_in = []
 
@@ -248,21 +256,20 @@ def plot_multiprocessing_join(args, scan_info, results):
     # Sort input image_infos by beg_y ASC, image_file_name ASC.
     image_infos_in.sort(key=lambda result: (result[1][4], result[0]))
 
-    last_beg_y = None
-
     for image_info_in in image_infos_in:
         image_file_name, bounds = image_info_in
         if not image_file_name:
             continue
 
         min_x, min_y, max_x, max_y, beg_y = bounds
-
-        if last_beg_y != beg_y and last_beg_y is not None:
-            p.finish_image()
-            p.start_image()
-            p.beg_y = beg_y
-
         if min_x <= max_x and min_y <= max_y:
+            if p.beg_y != beg_y:
+                print ">>> image restart", p.beg_y, beg_y
+
+                p.finish_image()
+                p.start_image()
+                p.beg_y = beg_y
+
             y = min_y
             while y <= max_y:
                 y_global = y + p.beg_y
@@ -274,7 +281,7 @@ def plot_multiprocessing_join(args, scan_info, results):
                 y += 1
 
             chunk_image = Image.open(image_file_name)
-            p.im.paste(chunk_image, (min_x, min_y + beg_y))
+            p.im.paste(chunk_image, (min_x, min_y))
             chunk_image.close()
 
             p.min_x = min(p.min_x, min_x)
@@ -284,8 +291,6 @@ def plot_multiprocessing_join(args, scan_info, results):
             p.max_y = max(p.max_y, max_y)
 
         os.remove(image_file_name)
-
-        last_beg_y = beg_y
 
     p.im.save(p.im_name)
 
@@ -297,7 +302,8 @@ def plot_multiprocessing_join(args, scan_info, results):
 # Single-threaded plot of the scan_info.
 def plot_scan_info(args, scan_info):
     dirs, path_prefix, width_dir, datetime_base, image_infos, p = \
-        plot_init(args.path, args.suffix, args.out_prefix, scan_info)
+        plot_init(args.path, args.suffix, args.out_prefix, scan_info,
+                  max_image_height=args.max_image_height)
 
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
@@ -329,7 +335,7 @@ def plot_scan_info(args, scan_info):
 
 def plot_init(paths_in, suffix, out_prefix, scan_info, crop_on_finish=False,
               on_start_image=None, on_finish_image=None,
-              max_image_height=max_image_height):
+              max_image_height=None):
     file_patterns = scan_info["file_patterns"]
     pattern_ranks = scan_info["pattern_ranks"]
     timestamp_first = scan_info["timestamp_first"]
