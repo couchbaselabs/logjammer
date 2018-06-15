@@ -1,10 +1,10 @@
 <html>
 <head>
-  <title>LOGAN</title>
+<title>LOGAN</title>
 </head>
 
 <style>
-#img, #hilite {
+.img, #hilite {
   position: absolute;
   top: 0;
   left: 0;
@@ -12,7 +12,7 @@
   border: none;
 }
 
-#img {
+.img {
   padding: 0 0 80px 0;
 }
 
@@ -74,11 +74,13 @@
 </style>
 
 <body>
-  <img id="img" src="out-logan-000.png">
+  <canvas id="hilite"></canvas>
+
   <div id="barHL" class="bar barH"></div>
   <div id="barHR" class="bar barH"></div>
   <div id="barVT" class="bar barV"></div>
   <div id="barVB" class="bar barV"></div>
+
   <div id="ftr">
     <div class="rhs">
       <button onclick="drill();">drill &gt;&gt;</button><br/>
@@ -93,78 +95,228 @@
 </body>
 
 <script>
-window.onload = function() {
-  fetch('out-logan.json')
-    .then(function(response) {
-      return response.json();
-    })
-    .then(function(info) {
-      main(info);
-    });
+var currInfo;
+
+var currImgInfo;
+
+// ------------------------------------------------------------------
+
+var imgInfos = [];
+
+function loadNextImg() {
+  var imgEl = document.createElement('img');
+
+  var imgIdx = imgInfos.length;
+
+  imgEl.id = "img-" + zeroPad(imgIdx, 3);
+  imgEl.className = "img";
+  imgEl.style = "display: none;";
+
+  imgEl.addEventListener("load", function() {
+    var canvasEl = document.createElement("canvas");
+
+    canvasEl.width = imgEl.width;
+    canvasEl.height = imgEl.height;
+
+    var canvasCtx = canvasEl.getContext('2d');
+
+    canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
+
+    var startSecondsSince2010 =
+      rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
+
+    console.log("img loaded", imgEl.id);
+    console.log("start timestamp",
+                new Date(2010, 0, 1, 0, 0, startSecondsSince2010));
+
+    var imgInfo = {
+      imgIdx: imgIdx,
+      imgEl: imgEl,
+      canvasEl: canvasEl,
+      canvasCtx: canvasCtx,
+      startSecondsSince2010: startSecondsSince2010,
+      eventDate: function(e) {
+        return new Date(2010, 0, 1, 0, 0,
+                        startSecondsSince2010 +
+                        rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
+      },
+      filePatternAtX: function(info, offsetX) {
+        if (!info) {
+          return;
+        }
+
+        var rank = offsetX - info.timestamp_gutter_width;
+        if (rank >= 0) {
+          rank = rank % (info.rankToPattern.length + 1);
+
+          var v = info.rankToPattern[rank];
+          if (v) {
+            var c = v.indexOf(':');
+            if (c > 0) {
+              var file = v.substring(0, c);
+              var patt = v.substring(c + 1);
+
+              patt = patt.replace(/\d+>/g, '');
+              patt = patt.replace(/', '/g, ' ');
+              patt = patt.replace(/[[\]]/g, '');
+
+              return [file, patt];
+            }
+          }
+        }
+      }
+    };
+
+    imgInfos[imgIdx] = imgInfo;
+
+    imgEl.addEventListener("click", onClick, false);
+    imgEl.addEventListener("mousemove", onMouseMove, false);
+    imgEl.addEventListener("dblclick", onDblClick, false);
+
+    var hiliteEl = document.getElementById("hilite");
+
+    hiliteEl.parentElement.insertBefore(imgEl, hiliteEl);
+
+    if (!currImgInfo) {
+      switchCurrImg(imgIdx);
+    }
+
+    prepHilite(imgEl.width, imgEl.height);
+
+    loadNextImg();
+  });
+
+  imgEl.src = "out-logan-" + zeroPad(imgIdx, 3) + ".png";
 }
 
-var mainInfo;
+// --------------------------------------------------------
 
-function main(info) {
-  mainInfo = info;
+function switchCurrImg(imgIdx) {
+  if (currImgInfo) {
+    currImgInfo.imgEl.style = "display: none;";
+  }
+  currImgInfo = imgInfos[imgIdx];
+  if (currImgInfo) {
+    currImgInfo.imgEl.style = "";
+  }
+}
 
-  if (!info.dirs) {
-    var dirs = {};
-    for (var i in info.paths) {
-       dirs[info.paths[i].split("/")[0]] = true;
+// --------------------------------------------------------
+
+var hiliteEl;
+var hiliteCtx;
+
+function prepHilite(width, height) {
+  if (hiliteEl) {
+    return;
+  }
+
+  hiliteEl = document.getElementById("hilite");
+  hiliteEl.width = width;
+  hiliteEl.height = height;
+
+  hiliteEl.addEventListener("click", onClick, false)
+  hiliteEl.addEventListener("mousemove", onMouseMove, false)
+  hiliteEl.addEventListener("dblclick", onDblClick, false)
+
+  hiliteCtx = hiliteEl.getContext('2d');
+}
+
+document.getElementById("hiliteInput").addEventListener("keyup",
+  function(e) {
+    if (e.keyCode === 13) { // Key ENTER leads to hilite().
+      e.preventDefault();
+      hilite();
     }
-    info.dirs = [];
-    for (var dir in dirs) {
-      info.dirs.push(dir);
+  });
+
+function hilite(terms) {
+  if (!currInfo || !hiliteEl || !hiliteCtx) {
+    return;
+  }
+
+  hiliteCtx.clearRect(0, 0, hiliteEl.width, hiliteEl.height);
+
+  if (!terms) {
+    var s = document.getElementById("hiliteInput").value.trim();
+    if (s.length <= 0) {
+      return;
     }
-    info.dirs.sort();
+
+    terms = s.split(" ");
   }
 
-  var rankToPattern = [];
-  for (var k in info.pattern_ranks) {
-    rankToPattern[info.pattern_ranks[k]] = k;
+  if (terms.length <= 0) {
+    return;
   }
 
-  var barHLEl = document.getElementById("barHL");
-  var barHREl = document.getElementById("barHR");
-  var barVTEl = document.getElementById("barVT");
-  var barVBEl = document.getElementById("barVB");
+  var rankToPattern = currInfo.rankToPattern;
 
-  var imgEl = document.getElementById("img");
-  var msgEl = document.getElementById("msg");
-  var ftrEl = document.getElementById("ftr");
+  for (var i in currInfo.dirs) {
+    var baseX = currInfo.timestamp_gutter_width + (i * (rankToPattern.length + 1));
 
-  var canvasEl;
-  var canvasCtx;
+  RANK_LOOP:
+    for (var rank in rankToPattern) {
+      var pattern = rankToPattern[rank];
 
-  var hiliteEl;
-  var hiliteCtx;
+      var s = 0;
+      for (var i in terms) {
+        var term = terms[i];
 
-  var startSecondsSince2010;
+        var must = 0;
+        if (term[0] == "+") { // Must see this term.
+          must = 1;
+          term = term.substring(1);
+        } else if (term[0] == "-") { // Must not see this term.
+          must = -1;
+          term = term.substring(1);
+        }
 
-  var focused = false;
+        var seen = pattern.indexOf(term) >= 0;
+        if (seen) {
+          if (must < 0) {
+            continue RANK_LOOP;
+          }
+          s += 1;
+        } else {
+          if (must > 0) {
+            continue RANK_LOOP;
+          }
+        }
+      }
 
-  imgEl.addEventListener("click", onClick, false)
-  imgEl.addEventListener("mousemove", onMouseMove, false)
-  imgEl.addEventListener("dblclick", onDblClick, false)
+      if (s > 0) {
+        var c = 50 + Math.round(200.0 * (s / terms.length));
+        hiliteCtx.fillStyle = "rgb(" + c + "," + c + ",0,0.4)";
+        hiliteCtx.fillRect(baseX + parseInt(rank), 0,
+                           1, hiliteEl.height);
+      }
+    }
+  }
+}
 
-  function onClick(e) {
-    focused = !focused;
+// ------------------------------------------------------------------
 
-    locationUpdate(e)
+var barHLEl = document.getElementById("barHL");
+var barHREl = document.getElementById("barHR");
+var barVTEl = document.getElementById("barVT");
+var barVBEl = document.getElementById("barVB");
+
+var msgEl = document.getElementById("msg");
+var ftrEl = document.getElementById("ftr");
+
+// ------------------------------------------------------------------
+
+var focused = false;
+
+var locationLast;
+
+function locationUpdate(info, imgInfo, e) {
+  if (!info || !imgInfo) {
+    return;
   }
 
-  function onMouseMove(e) {
-    locationUpdate(e);
-  }
-
-  var locationLast;
-
-  function onDblClick(e) {
-    drill(locationLast);
-  }
-
-  function locationUpdate(e) {
+  with (imgInfo) {
     if (canvasEl && canvasEl.height < e.offsetY) {
       return;
     }
@@ -179,11 +331,9 @@ function main(info) {
     var file;
     var patt;
 
-    prepCanvas();
+    var msg = formatDate(imgInfo.eventDate(e)) + "<br>";
 
-    var msg = formatDate(eventDate(e)) + "<br>";
-
-    var filePatt = filePatternAtX(e.offsetX);
+    var filePatt = imgInfo.filePatternAtX(info, e.offsetX);
     if (filePatt) {
       msg += filePatt[0] + "<br>" + filePatt[1];
     }
@@ -213,178 +363,107 @@ function main(info) {
     barVBEl.style.height = (canvasEl.height - e.offsetY - 3) + "px";
     barVBEl.style.left = e.offsetX + "px";
   }
+}
 
-  function prepCanvas() {
-    if (!canvasEl) {
-      canvasEl = document.createElement("canvas");
-      canvasEl.width = imgEl.width;
-      canvasEl.height = imgEl.height;
+// ------------------------------------------------------------------
 
-      canvasCtx = canvasEl.getContext('2d');
-      canvasCtx.drawImage(imgEl, 0, 0, imgEl.width, imgEl.height);
-
-      startSecondsSince2010 =
-        rgbToInt(canvasCtx.getImageData(0, 0, 1, 1).data) * 60;
-
-      console.log("start timestamp",
-                  new Date(2010, 0, 1, 0, 0, startSecondsSince2010))
-
-      hiliteEl = document.createElement("canvas");
-      hiliteEl.id = "hilite";
-      hiliteEl.width = imgEl.width;
-      hiliteEl.height = imgEl.height;
-
-      hiliteEl.addEventListener("click", onClick, false)
-      hiliteEl.addEventListener("mousemove", onMouseMove, false)
-      hiliteEl.addEventListener("dblclick", onDblClick, false)
-
-      imgEl.parentElement.insertBefore(hiliteEl, imgEl.nextSibling);
-
-      hiliteCtx = hiliteEl.getContext('2d');
-    }
+function drillAt(info, imgInfo, e) {
+  e = e || locationLast;
+  if (!e || !info || !imgInfo) {
+    return;
   }
 
-  function drill(e) {
-    e = e || locationLast;
-    if (!e) {
-      return;
-    }
+  focused = true;
 
-    focused = true;
+  var url = "/logan-drill?max_entries=1000&start=" + formatDate(imgInfo.eventDate(e));
 
-    var url = "/logan-drill?max_entries=1000&start=" + formatDate(eventDate(e));
+  var filePatt = imgInfo.filePatternAtX(info, e.offsetX);
+  if (filePatt) {
+    terms = filePatt[1].replace(/#[a-z][a-z0-9]+\s?/g, '');
+    terms = terms.trim();
+    terms = terms.replace(/\s+/g, ',');
+    terms = terms.replace(/'/g, '');
 
-    var filePatt = filePatternAtX(e.offsetX);
-    if (filePatt) {
-      terms = filePatt[1].replace(/#[a-z][a-z0-9]+\s?/g, '');
-      terms = terms.trim();
-      terms = terms.replace(/\s+/g, ',');
-      terms = terms.replace(/'/g, '');
-
-      url = url + "&terms=" + terms
-    }
-
-    window.open(url);
+    url = url + "&terms=" + terms
   }
 
-  window.drill = drill;
+  window.open(url);
+}
 
-  document.getElementById("hiliteInput").addEventListener("keyup",
-    function(e) {
-      if (e.keyCode === 13) { // Key ENTER leads to hilite().
-        e.preventDefault();
-        hilite();
+// ------------------------------------------------------------------
+
+function onClick(e) {
+  focused = !focused;
+
+  locationUpdate(currInfo, currImgInfo, e)
+}
+
+function onMouseMove(e) {
+  locationUpdate(currInfo, currImgInfo, e);
+}
+
+function onDblClick(e) {
+  drill();
+}
+
+function drill() {
+  return drillAt(currInfo, currImgInfo, locationLast);
+}
+
+// ------------------------------------------------------------------
+
+var zeros = "0000000000";
+
+function zeroPad(s, nchars) {
+  s = String(s)
+  return zeros.substring(0, nchars - s.length) + s
+}
+
+function rgbToInt(rgb) {
+  return (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
+}
+
+function formatDate(d) {
+  return d.getFullYear() + "-" +
+    zeroPad(1 + d.getMonth(), 2) + "-" +
+    zeroPad(d.getDate(), 2) + "T" +
+    zeroPad(d.getHours(), 2) + ":" +
+    zeroPad(d.getMinutes(), 2) + ":" +
+    zeroPad(d.getSeconds(), 2)
+}
+
+// ------------------------------------------------------------------
+
+window.onload = function() {
+  loadNextImg();
+
+  fetch('out-logan.json')
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(info) {
+      if (!info.dirs) {
+        var dirs = {};
+        for (var i in info.paths) {
+          dirs[info.paths[i].split("/")[0]] = true;
+        }
+        info.dirs = [];
+        for (var dir in dirs) {
+          info.dirs.push(dir);
+        }
+        info.dirs.sort();
       }
+
+      if (!info.rankToPattern) {
+        var rankToPattern = [];
+        for (var k in info.pattern_ranks) {
+          rankToPattern[info.pattern_ranks[k]] = k;
+        }
+        info.rankToPattern = rankToPattern;
+      }
+
+      currInfo = info;
     });
-
-  function hilite(terms) {
-    hiliteCtx.clearRect(0, 0, hiliteEl.width, hiliteEl.height);
-
-    if (!terms) {
-      var s = document.getElementById("hiliteInput").value.trim();
-      if (s.length <= 0) {
-        return;
-      }
-
-      terms = s.split(" ");
-    }
-
-    if (!mainInfo || terms.length <= 0) {
-      return;
-    }
-
-    for (var i in mainInfo.dirs) {
-      var baseX = info.timestamp_gutter_width + (i * (rankToPattern.length + 1));
-
-    RANK_LOOP:
-      for (var rank in rankToPattern) {
-        var pattern = rankToPattern[rank];
-
-        var s = 0;
-        for (var i in terms) {
-          var term = terms[i];
-
-          var must = 0;
-          if (term[0] == "+") { // Must see this term.
-            must = 1;
-            term = term.substring(1);
-          } else if (term[0] == "-") { // Must not see this term.
-            must = -1;
-            term = term.substring(1);
-          }
-
-          var seen = pattern.indexOf(term) >= 0;
-          if (seen) {
-            if (must < 0) {
-              continue RANK_LOOP;
-            }
-            s += 1;
-          } else {
-            if (must > 0) {
-              continue RANK_LOOP;
-            }
-          }
-        }
-
-        if (s > 0) {
-          var c = 50 + Math.round(200.0 * (s / terms.length));
-          hiliteCtx.fillStyle = "rgb(" + c + "," + c + ",0,0.4)";
-          hiliteCtx.fillRect(baseX + parseInt(rank), 0,
-                             1, hiliteEl.height);
-        }
-      }
-    }
-  }
-
-  window.hilite = hilite;
-
-  function eventDate(e) {
-    return new Date(2010, 0, 1, 0, 0,
-                    startSecondsSince2010 +
-                    rgbToInt(canvasCtx.getImageData(0, e.offsetY, 1, 1).data));
-  }
-
-  function filePatternAtX(offsetX) {
-    var rank = offsetX - info.timestamp_gutter_width;
-    if (rank >= 0) {
-      rank = rank % (rankToPattern.length + 1);
-
-      var v = rankToPattern[rank];
-      if (v) {
-        var c = v.indexOf(':');
-        if (c > 0) {
-          var file = v.substring(0, c);
-          var patt = v.substring(c + 1);
-
-          patt = patt.replace(/\d+>/g, '');
-          patt = patt.replace(/', '/g, ' ');
-          patt = patt.replace(/[[\]]/g, '');
-
-          return [file, patt];
-        }
-      }
-    }
-  }
-
-  function rgbToInt(rgb) {
-    return (rgb[0] << 16) + (rgb[1] << 8) + rgb[2];
-  }
-
-  function formatDate(d) {
-    return d.getFullYear() + "-" +
-      zeroPad(1 + d.getMonth(), 2) + "-" +
-      zeroPad(d.getDate(), 2) + "T" +
-      zeroPad(d.getHours(), 2) + ":" +
-      zeroPad(d.getMinutes(), 2) + ":" +
-      zeroPad(d.getSeconds(), 2)
-  }
-
-  var zeros = "0000000000";
-
-  function zeroPad(s, nchars) {
-    s = String(s)
-    return zeros.substring(0, nchars - s.length) + s
-  }
 }
 </script>
 </html>
