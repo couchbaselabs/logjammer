@@ -264,10 +264,11 @@ def plot_multiprocessing_join(args, scan_info, results):
         min_x, min_y, max_x, max_y, beg_y = bounds
         if min_x <= max_x and min_y <= max_y:
             if p.beg_y != beg_y:
-                print ">>> image restart", p.beg_y, beg_y
+                print "finished joining image", p.im_name
 
                 p.finish_image()
                 p.start_image()
+
                 p.beg_y = beg_y
 
             y = min_y
