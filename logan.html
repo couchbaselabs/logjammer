@@ -44,21 +44,29 @@
   color: #888;
 }
 
+#ftr.hit {
+  background-color: #dfd;
+}
+
 #ftr .rhs {
   float: right;
   margin-right: 20px;
-  visibility: hidden;
+}
+
+#ftr .rhs #imgLabel {
+  margin: 0 0 4px 0;
+  padding: 0 0 0 0;
 }
 
 #ftr .rhs button {
   margin-bottom: 5px;
 }
 
-#ftr.hit {
-  background-color: #dfd;
+#ftr .rhs .drill {
+  visibility: hidden;
 }
 
-#ftr.hit .rhs, #ftr.focused .rhs {
+#ftr.hit .rhs .drill, #ftr.focused .rhs .drill {
   visibility: visible;
 }
 
@@ -83,7 +91,10 @@
 
   <div id="ftr">
     <div class="rhs">
-      <button onclick="drill();">drill &gt;&gt;</button><br/>
+      <pre id="imgLabel">...</pre>
+      <button onclick="prevImg();">prev image</button><br/>
+      <button onclick="nextImg();">next image</button><br/>
+      <button onclick="drill();" class="drill">drill &gt;&gt;</button><br/>
     </div>
     <div id="msg">loading...</div>
     <div class="hilite">
@@ -177,7 +188,9 @@ function loadNextImg() {
 
     hiliteEl.parentElement.insertBefore(imgEl, hiliteEl);
 
-    if (!currImgInfo) {
+    if (currImgInfo) {
+      switchCurrImg(currImgInfo.imgIdx);
+    } else {
       switchCurrImg(imgIdx);
     }
 
@@ -192,13 +205,19 @@ function loadNextImg() {
 // --------------------------------------------------------
 
 function switchCurrImg(imgIdx) {
+  var label = "";
+
   if (currImgInfo) {
     currImgInfo.imgEl.style = "display: none;";
   }
   currImgInfo = imgInfos[imgIdx];
   if (currImgInfo) {
     currImgInfo.imgEl.style = "";
+
+    label = "image #" + imgIdx + " of " + imgInfos.length;
   }
+
+  document.getElementById("imgLabel").innerHTML = label;
 }
 
 // --------------------------------------------------------
@@ -408,6 +427,18 @@ function onDblClick(e) {
 
 function drill() {
   return drillAt(currInfo, currImgInfo, locationLast);
+}
+
+function prevImg() {
+  if (imgInfos && currImgInfo && (currImgInfo.imgIdx - 1) >= 0) {
+    switchCurrImg(currImgInfo.imgIdx - 1);
+  }
+}
+
+function nextImg() {
+  if (imgInfos && currImgInfo && (currImgInfo.imgIdx + 1) < imgInfos.length) {
+    switchCurrImg(currImgInfo.imgIdx + 1);
+  }
 }
 
 // ------------------------------------------------------------------
