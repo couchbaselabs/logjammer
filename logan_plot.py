@@ -38,9 +38,11 @@ def plot(argv, args, scan_info):
         return
 
     if args.multiprocessing >= 0:
-        plot_multiprocessing_scan_info(args, scan_info)
+        image_infos = plot_multiprocessing_scan_info(args, scan_info)
     else:
-        plot_scan_info(args, scan_info)
+        image_infos = plot_scan_info(args, scan_info)
+
+    print "\n\nimage_infos", image_infos
 
     plot_info = dict(scan_info)  # Copy before modifying.
 
@@ -236,35 +238,54 @@ def plot_multiprocessing_join(args, scan_info, results):
         plot_init(args.path, args.suffix, args.out_prefix, scan_info,
                   max_image_height=0)
 
-    for i, timestamp in enumerate(timestamps):
-        plot_timestamp(p, datetime_base, timestamp, i + 1)
-
-    image_infos = []
+    image_infos_in = []
 
     for result in results:
-        if not result:
-            continue
+        if result:
+            for image_info in result["image_infos"]:
+                image_infos_in.append(image_info)
 
-        for image_info in result["image_infos"]:
-            image_infos.append(image_info)
+    # Sort input image_infos by beg_y ASC, image_file_name ASC.
+    image_infos_in.sort(key=lambda result: (result[1][4], result[0]))
 
-    # Sort image_infos by beg_y ASC, image_file_name ASC.
-    image_infos.sort(key=lambda result: (result[1][4], result[0]))
+    last_beg_y = None
 
-    for image_info in image_infos:
-        image_file_name, bounds = image_info
+    for image_info_in in image_infos_in:
+        image_file_name, bounds = image_info_in
         if not image_file_name:
             continue
 
         min_x, min_y, max_x, max_y, beg_y = bounds
+
+        if last_beg_y != beg_y and last_beg_y is not None:
+            p.finish_image()
+            p.start_image()
+            p.beg_y = beg_y
+
         if min_x <= max_x and min_y <= max_y:
+            y = min_y
+            while y <= max_y:
+                y_global = y + p.beg_y
+                if y_global >= len(timestamps):
+                    break
+
+                plot_timestamp(p, datetime_base, timestamps[y], y_global)
+
+                y += 1
+
             chunk_image = Image.open(image_file_name)
-
             p.im.paste(chunk_image, (min_x, min_y + beg_y))
-
             chunk_image.close()
 
+            p.min_x = min(p.min_x, min_x)
+            p.min_y = min(p.min_y, min_y)
+
+            p.max_x = max(p.max_x, max_x)
+            p.max_y = max(p.max_y, max_y)
+
         os.remove(image_file_name)
+
+        last_beg_y = beg_y
 
     p.im.save(p.im_name)
 
@@ -302,14 +323,6 @@ def plot_scan_info(args, scan_info):
     logmerge.main_with_args(args, visitor=plot_visitor)
 
     p.finish_image()
-
-    print "len(dirs)", len(dirs)
-    print "len(pattern_ranks)", len(pattern_ranks)
-    print "timestamp_first", scan_info["timestamp_first"]
-    print "timestamps_num_unique", scan_info["timestamps_num_unique"]
-    print "p.im_num", p.im_num
-    print "p.plot_num", p.plot_num
-    print "image_infos", image_infos
 
     return image_infos
 
