@@ -200,6 +200,8 @@ def plot_multiprocessing_worker_actual(work):
             # and callback timestamp arg is always increasing.
             timestamp_idx = bisect.bisect_left(timestamps, timestamp)
 
+            y = timestamp_idx + 1
+
             if max_image_height:
                 img_n = int(timestamp_idx / (max_image_height - 1))
 
@@ -211,7 +213,8 @@ def plot_multiprocessing_worker_actual(work):
                     p.start_image()
                     p.beg_y = beg_y
 
-            y = timestamp_idx
+                if img_n > 0:
+                    y -= 1
 
         p.plot_point(x, y)
 
