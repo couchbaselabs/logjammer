@@ -202,6 +202,7 @@ def plot_multiprocessing_worker_actual(work):
 
             if max_image_height:
                 beg_y = max_image_height * int(y / max_image_height)
+                beg_y = max(0, beg_y - 1)
                 if p.beg_y != beg_y:
                     p.finish_image()
                     p.start_image()
@@ -277,7 +278,7 @@ def plot_multiprocessing_join(args, scan_info, results):
                 if y_global >= len(timestamps):
                     break
 
-                plot_timestamp(p, datetime_base, timestamps[y], y_global)
+                plot_timestamp(p, datetime_base, timestamps[y_global], y_global)
 
                 y += 1
 
