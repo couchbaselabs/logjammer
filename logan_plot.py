@@ -13,6 +13,10 @@ from dateutil import parser
 
 from PIL import Image, ImageDraw
 
+# See progressbar2 https://github.com/WoLpH/python-progressbar
+# Ex: pip install progressbar2
+import progressbar
+
 import logmerge
 
 from logan_scan import entry_to_pattern, re_erro, timestamp_prefix_len
@@ -265,7 +269,14 @@ def plot_multiprocessing_join(args, scan_info, results):
     # Sort input image_infos by beg_y ASC, image_file_name ASC.
     image_infos_in.sort(key=lambda result: (result[1][4], result[0]))
 
-    for image_info_in in image_infos_in:
+    print "\n============================================"
+    print "joining images..."
+
+    bar = progressbar.ProgressBar(max_value=len(image_infos_in))
+
+    for i, image_info_in in enumerate(image_infos_in):
+        bar.update(i)
+
         image_file_name, bounds = image_info_in
         if not image_file_name:
             continue
@@ -273,9 +284,8 @@ def plot_multiprocessing_join(args, scan_info, results):
         min_x, min_y, max_x, max_y, beg_y = bounds
         if min_x <= max_x and min_y <= max_y:
             if p.beg_y != beg_y:
-                print "finished joining image", p.im_name
-
                 p.finish_image()
+                print "  joined image", p.im_name
                 p.start_image()
 
                 p.beg_y = beg_y
