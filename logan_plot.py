@@ -554,7 +554,7 @@ class Plotter(object):
             self.cur_y += 1  # Move to next line.
 
         cur_im_changed = False
-        if (self.cur_y - self.beg_y) > self.height:
+        if (self.cur_y - self.beg_y) >= self.height:
             cur_im_changed = True
 
             self.finish_image()
