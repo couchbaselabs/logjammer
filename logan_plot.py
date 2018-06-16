@@ -198,15 +198,20 @@ def plot_multiprocessing_worker_actual(work):
         else:
             # TODO: This is inefficient, as timestamps are ordered,
             # and callback timestamp arg is always increasing.
-            y = bisect.bisect_left(timestamps, timestamp) + 1
+            timestamp_idx = bisect.bisect_left(timestamps, timestamp)
 
             if max_image_height:
-                beg_y = max_image_height * int(y / max_image_height)
+                img_n = int(timestamp_idx / (max_image_height - 1))
+
+                beg_y = img_n * (max_image_height - 1)
                 beg_y = max(0, beg_y - 1)
+
                 if p.beg_y != beg_y:
                     p.finish_image()
                     p.start_image()
                     p.beg_y = beg_y
+
+            y = timestamp_idx
 
         p.plot_point(x, y)
 
