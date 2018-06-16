@@ -37,11 +37,15 @@
   width: 100%;
   margin: 0 0 0 0;
   border-top: 1px solid #666;
+  padding: 0 0 0 0;
   background-color: white;
-  padding: 5px 10px;
   z-index: 1;
   font-size: 8pt;
   color: #888;
+}
+
+#ftr .ftrMain {
+  padding: 10px 10px 0 15px;
 }
 
 #ftr.hit {
@@ -50,11 +54,16 @@
 
 #ftr .rhs {
   float: right;
-  margin-right: 20px;
+  margin: 0 0 0 0;
+  padding: 10px 10px 30px 10px;
+}
+
+#ftr .rhs.nav {
+  border-left: 1px solid #999;
 }
 
 #ftr .rhs #imgLabel {
-  margin: 0 0 4px 0;
+  margin: 3px 0 3px 0;
   padding: 0 0 0 0;
 }
 
@@ -62,21 +71,21 @@
   margin-bottom: 5px;
 }
 
-#ftr .rhs .drill {
-  visibility: hidden;
-}
-
-#ftr.hit .rhs .drill, #ftr.focused .rhs .drill {
-  visibility: visible;
-}
-
 .hilite {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  margin: 5px 5px 2px 5px;
   white-space: nowrap;
+}
+
+.hilite button {
+  background: #ee0;
 }
 
 #hiliteInput {
   width: 50%;
-  margin-top: 5px;
   background-color: #eee;
 }
 </style>
@@ -90,17 +99,21 @@
   <div id="barVB" class="bar barV"></div>
 
   <div id="ftr">
-    <div class="rhs">
+    <div class="rhs nav">
       <pre id="imgLabel">...</pre>
       <button onclick="prevImg();">prev image</button><br/>
       <button onclick="nextImg();">next image</button><br/>
-      <button onclick="drill();" class="drill">drill &gt;&gt;</button><br/>
     </div>
-    <div id="msg">loading...</div>
-    <div class="hilite">
-      <button onclick="hilite();">hilite</button>
-      <input type="text" id="hiliteInput"
-             placeholder="space separated terms, with optional +/- prefix; ex: +cluster +join"/>
+    <div class="rhs drill">
+      <button onclick="drill();">drill &gt;&gt;</button><br/>
+    </div>
+    <div class="ftrMain">
+      <div id="msg">loading...</div>
+      <div class="hilite">
+        <button onclick="hilite();">hilite columns</button>
+        <input type="text" id="hiliteInput"
+               placeholder="space separated terms, with optional +/- prefix; ex: +cluster +join"/>
+      </div>
     </div>
   </div>
 </body>
@@ -197,6 +210,8 @@ function switchCurrImgInfo(imgInfo) {
     var hiliteEl = document.getElementById("hilite");
 
     hiliteEl.parentElement.insertBefore(currImgInfo.imgEl, hiliteEl);
+
+    locationUpdate(currInfo, currImgInfo, locationLast);
 
     label = "image #" + currImgInfo.imgIdx;
   }
@@ -322,7 +337,7 @@ var focused = false;
 var locationLast;
 
 function locationUpdate(info, imgInfo, e) {
-  if (!info || !imgInfo) {
+  if (!info || !imgInfo || !e) {
     return;
   }
 

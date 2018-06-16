@@ -283,8 +283,8 @@ def plot_multiprocessing_join(args, scan_info, results):
                 if y_global >= len(timestamps):
                     break
 
-                plot_timestamp(p, datetime_base, timestamps[y_global], y_global)
-
+                plot_timestamp(p, datetime_base,
+                               timestamps[y_global], y_global)
                 y += 1
 
             chunk_image = Image.open(image_file_name)
