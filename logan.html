@@ -134,7 +134,7 @@ var currImgInfo;
 
 // ------------------------------------------------------------------
 
-function loadImg(imgIdx) {
+function loadImg(imgIdx, outPrefix) {
   var imgEl = document.createElement('img');
 
   imgEl.id = "img-" + zeroPad(imgIdx, 3);
@@ -204,7 +204,7 @@ function loadImg(imgIdx) {
     switchCurrImgInfo(imgInfo);
   });
 
-  imgEl.src = "out-logan-" + zeroPad(imgIdx, 3) + ".png";
+  imgEl.src = outPrefix + "-" + zeroPad(imgIdx, 3) + ".png";
 }
 
 // --------------------------------------------------------
@@ -448,13 +448,13 @@ function drill() {
 
 function prevImg() {
   if (currImgInfo && currImgInfo.imgIdx > 0) {
-    loadImg(currImgInfo.imgIdx - 1);
+    loadImg(currImgInfo.imgIdx - 1, outPrefix);
   }
 }
 
 function nextImg() {
   if (currImgInfo) {
-    loadImg(currImgInfo.imgIdx + 1);
+    loadImg(currImgInfo.imgIdx + 1, outPrefix);
   }
 }
 
@@ -480,16 +480,28 @@ function formatDate(d) {
     zeroPad(d.getSeconds(), 2)
 }
 
+function parsePairs(s) {
+  var rv = {};
+  var pairs = s.split("&");
+  for (var i in pairs) {
+    rv[pairs[i].split("=")[0]] = (pairs[i].split("=")[1] || null);
+  }
+  return rv;
+}
+
 // ------------------------------------------------------------------
 
-window.onload = function() {
-  var hash = {};
-  var pairs = window.location.hash.substring(1).split("&");
-  for (var i in pairs) {
-    hash[pairs[i].split("=")[0]] = pairs[i].split("=")[1];
-  }
+var outPrefix;
 
-  loadImg(parseInt(hash["page"]) || 0);
+window.onload = function() {
+  outPrefix =
+    parsePairs(window.location.search.substring(1))["outPrefix"] ||
+    "out-logan";
+
+  var imgIdx =
+    parseInt(parsePairs(window.location.hash.substring(1))["page"]) || 0;
+
+  loadImg(imgIdx, outPrefix);
 
   fetch('out-logan.json')
     .then(function(response) {
