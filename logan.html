@@ -63,7 +63,7 @@
 }
 
 #ftr .rhs #imgLabel {
-  margin: 3px 0 3px 0;
+  margin: 3px 0 6px 0;
   padding: 0 0 0 0;
 }
 
@@ -101,8 +101,8 @@
   <div id="ftr">
     <div class="rhs nav">
       <pre id="imgLabel">...</pre>
-      <button onclick="prevImg();">prev image</button><br/>
-      <button onclick="nextImg();">next image</button><br/>
+      <button onclick="prevImg();">&#9650; prev page</button><br/>
+      <button onclick="nextImg();">&#9660; next page</button><br/>
     </div>
     <div class="rhs drill">
       <button onclick="drill();">drill &gt;&gt;</button><br/>
@@ -213,7 +213,7 @@ function switchCurrImgInfo(imgInfo) {
 
     locationUpdate(currInfo, currImgInfo, locationLast);
 
-    label = "image #" + currImgInfo.imgIdx;
+    label = "page #" + currImgInfo.imgIdx;
   }
 
   document.getElementById("imgLabel").innerHTML = label;
