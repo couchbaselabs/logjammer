@@ -28,6 +28,17 @@ from logan_util import byteify, chunkify_path_sizes, \
 timestamp_gutter_width = 4  # In pixels.
 
 
+def init_plot_info(scan_info):
+    plot_info = dict(scan_info)  # Copy before modifying.
+
+    plot_info["timestamp_gutter_width"] = timestamp_gutter_width
+
+    # The file_patterns are too big / unused so remove from plot_info.
+    del plot_info["file_patterns"]
+
+    return plot_info
+
+
 # Scan the log entries, plotting them based on the given scan info.
 def plot(argv, args, scan_info):
     file_patterns = scan_info["file_patterns"]
@@ -45,15 +56,6 @@ def plot(argv, args, scan_info):
         image_infos = plot_scan_info(args, scan_info)
 
     print "\n\nimage_infos", image_infos
-
-    plot_info = dict(scan_info)  # Copy before modifying.
-
-    plot_info["timestamp_gutter_width"] = timestamp_gutter_width
-
-    # The file_patterns are too big / unused for plot_info so remove.
-    del plot_info["file_patterns"]
-
-    return plot_info
 
 
 # Plot of the scan_info using multiprocessing.
@@ -269,7 +271,7 @@ def plot_multiprocessing_join(args, scan_info, results):
     # Sort input image_infos by beg_y ASC, image_file_name ASC.
     image_infos_in.sort(key=lambda result: (result[1][4], result[0]))
 
-    print "\n============================================"
+    print "\n\n============================================"
     print "joining images..."
 
     bar = progressbar.ProgressBar(max_value=len(image_infos_in))

@@ -8,7 +8,7 @@ import sys
 
 from logan_args import new_argument_parser, prep_args
 from logan_http import http_server
-from logan_plot import plot
+from logan_plot import plot, init_plot_info
 from logan_scan import scan
 from logan_util import byteify
 
@@ -58,13 +58,16 @@ def main_steps(argv, args, scan_info=None):
     if "plot" in steps:
         print "\n============================================"
         print "plotting..."
-        plot_info = plot(argv, args, scan_info)
+        plot_info = init_plot_info(scan_info)
 
         plot_info_file = args.out_prefix + ".json"
         with open(plot_info_file, 'w') as f:
             f.write(json.dumps(plot_info))
 
         print "\nwrote", plot_info_file
+
+        print "\nplotting images..."
+        plot(argv, args, scan_info)
 
     if "http" in steps:
         print "\n============================================"
