@@ -371,21 +371,20 @@ class TimestampInfo(object):
                 self.flush()
 
 
-# Need 32 hex chars for a uid pattern.
-pattern_uid = "[a-f0-9]" * 32
-
-ex_uid1 = "572527a076445ff8_6ddbfb54"
-
-pattern_uid1a = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[0]))
-
-pattern_uid1b = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[1]))
-
 # An example rev to initialize pattern_rev.
 ex_rev = \
     "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
     "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
 
 pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
+
+# Need 32 hex chars for a uid pattern.
+pattern_uid = "[a-f0-9]" * 32
+
+ex_uid1 = "572527a076445ff8_6ddbfb54"
+
+pattern_uid1a = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[0]))
+pattern_uid1b = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[1]))
 
 # Some number-like patterns such as dotted or dashed or slashed or
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
