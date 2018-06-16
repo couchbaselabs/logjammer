@@ -40,42 +40,33 @@
   padding: 0 0 0 0;
   background-color: white;
   z-index: 1;
-  font-size: 8pt;
-  color: #888;
 }
 
-#ftr .ftrMain {
-  padding: 10px 10px 0 15px;
+#ftr > * {
+  font-size: 8pt;
+  color: #888;
 }
 
 #ftr.hit {
   background-color: #dfd;
 }
 
-#ftr .rhs {
-  float: right;
-  margin: 0 0 0 0;
-  padding: 10px 10px 30px 10px;
+#ftr .nav {
+  margin: 0 10px 0 0;
+  border-right: 1px solid #999;
+  padding: 0 10px 0 10px;
 }
 
-#ftr .rhs.nav {
-  border-left: 1px solid #999;
-}
-
-#ftr .rhs #imgLabel {
-  margin: 3px 0 6px 0;
-  padding: 0 0 0 0;
-}
-
-#ftr .rhs button {
+#ftr .nav #imgLabel {
   margin-bottom: 5px;
 }
 
-.hilite {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
+#ftr .drill {
+  margin: 0 0 0 0;
+  padding: 10px 5px 0 10px;
+}
+
+#fts .hilite {
   margin: 5px 5px 2px 5px;
   white-space: nowrap;
 }
@@ -84,38 +75,52 @@
   background: #ee0;
 }
 
-#hiliteInput {
+.hilite input {
   width: 50%;
   background-color: #eee;
 }
 </style>
 
 <body>
-  <canvas id="hilite"></canvas>
+ <canvas id="hilite"></canvas>
 
-  <div id="barHL" class="bar barH"></div>
-  <div id="barHR" class="bar barH"></div>
-  <div id="barVT" class="bar barV"></div>
-  <div id="barVB" class="bar barV"></div>
+ <div id="barHL" class="bar barH"></div>
+ <div id="barHR" class="bar barH"></div>
+ <div id="barVT" class="bar barV"></div>
+ <div id="barVB" class="bar barV"></div>
 
-  <div id="ftr">
-    <div class="rhs nav">
-      <pre id="imgLabel">...</pre>
-      <button onclick="prevImg();">&#9650; prev page</button><br/>
-      <button onclick="nextImg();">&#9660; next page</button><br/>
-    </div>
-    <div class="rhs drill">
-      <button onclick="drill();">drill &gt;&gt;</button><br/>
-    </div>
-    <div class="ftrMain">
+ <div id="ftr">
+  <table>
+   <tr>
+    <td valign="top" rowspan="2">
+     <div class="nav">
+      <div id="imgLabel">...</div>
+      <button onclick="prevImg();">&#9650;&nbsp;prev&nbsp;page</button><br/>
+      <button onclick="nextImg();">&#9660;&nbsp;next&nbsp;page</button><br/>
+     </div>
+    </td>
+    <td width="100%" valign="top">
+     <div class="msg">
       <div id="msg">loading...</div>
-      <div class="hilite">
-        <button onclick="hilite();">hilite columns</button>
-        <input type="text" id="hiliteInput"
-               placeholder="space separated terms, with optional +/- prefix; ex: +cluster +join"/>
-      </div>
-    </div>
-  </div>
+     </div>
+    </td>
+    <td valign="top" rowspan="2">
+     <div class="drill">
+      <button onclick="drill();">drill&nbsp;&gt;&gt;</button><br/>
+     </div>
+    </td>
+   </tr>
+    <td width="100%" valign="bottom">
+     <div class="hilite">
+      <button onclick="hilite();">hilite columns</button>
+      <input type="text" id="hiliteInput"
+             placeholder="space separated terms, with optional +/- prefix; ex: +cluster +join"/>
+     </div>
+    </td>
+   <tr>
+   </tr>
+  </table>
+ </div>
 </body>
 
 <script>
