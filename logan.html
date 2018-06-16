@@ -481,7 +481,13 @@ function formatDate(d) {
 // ------------------------------------------------------------------
 
 window.onload = function() {
-  loadImg(0);
+  var params = {};
+  var pairs = window.location.search.substring(1).split("&");
+  for (var i in pairs) {
+    params[pairs[i].split("=")[0]] = pairs[i].split("=")[1];
+  }
+
+  loadImg(parseInt(params["page"]) || 0);
 
   fetch('out-logan.json')
     .then(function(response) {
