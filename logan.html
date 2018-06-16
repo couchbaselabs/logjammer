@@ -223,6 +223,8 @@ function switchCurrImgInfo(imgInfo) {
     locationUpdate(currInfo, currImgInfo, locationLast);
 
     label = "page #" + currImgInfo.imgIdx;
+
+    window.location.hash = "#page=" + currImgInfo.imgIdx;
   }
 
   document.getElementById("imgLabel").innerHTML = label;
@@ -481,13 +483,13 @@ function formatDate(d) {
 // ------------------------------------------------------------------
 
 window.onload = function() {
-  var params = {};
-  var pairs = window.location.search.substring(1).split("&");
+  var hash = {};
+  var pairs = window.location.hash.substring(1).split("&");
   for (var i in pairs) {
-    params[pairs[i].split("=")[0]] = pairs[i].split("=")[1];
+    hash[pairs[i].split("=")[0]] = pairs[i].split("=")[1];
   }
 
-  loadImg(parseInt(params["page"]) || 0);
+  loadImg(parseInt(hash["page"]) || 0);
 
   fetch('out-logan.json')
     .then(function(response) {
