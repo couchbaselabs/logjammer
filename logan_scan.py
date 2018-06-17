@@ -429,10 +429,6 @@ ex_uid2 = "8289e02c-6623-4fa1-8087-d1bb262590f9"
 pattern_uid2 = "[\-_]".join([("[a-f0-9]" * len(x))
                              for x in ex_uid2.split("-")])
 
-ex_uid3 = "gtbG+zm+n9+6EvaiDr9grBUB/V96HXSdBaWT2vTRgtM="
-
-pattern_uid3 = ("[a-zA-Z0-9+/]" * (len(ex_uid3) - 1)) + "="
-
 # Some number-like patterns such as dotted or dashed or slashed or
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
 # addresses are also matched.
@@ -441,7 +437,6 @@ pattern_num_ish = [
     ("#hex", r"0x[A-F0-9][A-F0-9]+"),
     ("#rev", pattern_rev),
     ("#uid", pattern_uid),
-    ("#uid", pattern_uid3),
     ("#uid", pattern_uid2),
     ("#uid", pattern_uid1a),
     ("#uid", pattern_uid1b),
