@@ -414,27 +414,32 @@ ex_rev = \
     "g2wAAAABaAJtAAAAIDJkZTgzNjhjZTNlMjQ0Y2Q" + \
     "3ZDE0MWE2OGI0ODE3ZDdjaAJhAW4FANj8ddQOag"
 
-pattern_rev = "[a-zA-Z90-9]" * len(ex_rev)
+pattern_rev = "[\-_]?" + ("[a-zA-Z90-9]" * len(ex_rev))
 
-# Need 32 hex chars for a uid pattern.
-pattern_uid = "[a-f0-9]" * 32
+ex_uid = "5bbc3cedf91465b847ab80bb3cdb1f27"  # 32 chars.
 
-ex_uid1 = "572527a076445ff8_6ddbfb54"
-
-pattern_uid1a = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[0]))
-pattern_uid1b = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[1]))
+pattern_uid = "[\-_]?" + ("[a-f0-9]" * len(ex_uid))
 
 ex_uid2 = "8289e02c-6623-4fa1-8087-d1bb262590f9"
 
-pattern_uid2 = "[\-_]".join([("[a-f0-9]" * len(x))
-                             for x in ex_uid2.split("-")])
+pattern_uid2 = "[\-_]?" + "[\-_]".join([("[a-f0-9]" * len(x))
+                                        for x in ex_uid2.split("-")])
+
+ex_uid1 = "572527a076445ff8_152682539515_6ddbfb5"
+
+pattern_uid1a = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[0]))
+pattern_uid1b = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[1])) + \
+                            "[a-f0-9]?"
+pattern_uid1c = "[\-_]?" + ("[a-f0-9]" * len(ex_uid1.split("_")[2])) + \
+                            "[a-f0-9]?"
 
 pattern_uid_ish = [
     ("#rev", pattern_rev),
     ("#uid", pattern_uid),
     ("#uid", pattern_uid2),
     ("#uid", pattern_uid1a),
-    ("#uid", pattern_uid1b)]
+    ("#uid", pattern_uid1b),
+    ("#uid", pattern_uid1c)]
 
 # Some number-like patterns such as dotted or dashed or slashed or
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
