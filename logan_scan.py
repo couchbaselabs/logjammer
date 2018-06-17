@@ -456,6 +456,7 @@ pattern_num_ish = [
     ("#hms", r"T?\d\d:\d\d:\d\d"),
     ("#ip4", r"\d+\.\d+\.\d+\.\d+"),
     ("#idn", r"[a-zA-Z][a-zA-Z\-_]+\d+"),  # Numbered identifier, like "vb8".
+    ("#idh", r"##[a-f0-9]+"),
     ("#neg", r"-\d[\d\.]*"),               # Negative dotted number.
     ("#pos", r"\d[\d\.]*")]                # Positive dotted number.
 
