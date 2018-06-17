@@ -58,6 +58,9 @@ def plot(argv, args, scan_info):
     print "\n\nimage_infos", image_infos
 
 
+plot_multiprocessing_debug = False
+
+
 # Plot of the scan_info using multiprocessing.
 def plot_multiprocessing_scan_info(args, scan_info):
     paths, total_size, path_sizes = \
@@ -68,6 +71,11 @@ def plot_multiprocessing_scan_info(args, scan_info):
 
     q = multiprocessing.Manager().Queue()
 
+    if plot_multiprocessing_debug:
+        # Single threaded mode to help with debugging.
+        return map(plot_multiprocessing_worker_actual,
+                   [(chunk, args, None) for chunk in chunks])
+
     pool_processes = args.multiprocessing or multiprocessing.cpu_count()
 
     pool = multiprocessing.Pool(processes=pool_processes)
@@ -77,9 +85,7 @@ def plot_multiprocessing_scan_info(args, scan_info):
         [(chunk, args, q) for chunk in chunks])
 
     pool.close()
-
     multiprocessing_wait(q, len(chunks), total_size)
-
     pool.join()
 
     return plot_multiprocessing_join(args, scan_info, results.get())
@@ -184,7 +190,9 @@ def plot_multiprocessing_worker_actual(work):
 
     v_state = VState()
 
-    bar = QueueBar(chunk, q)
+    bar = None
+    if q:
+        bar = QueueBar(chunk, q)
 
     max_image_height = args.max_image_height
 
@@ -243,7 +251,8 @@ def plot_multiprocessing_worker_actual(work):
 
     p.finish_image()
 
-    q.put("done", False)
+    if q:
+        q.put("done", False)
 
     return {
         "path": path,

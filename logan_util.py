@@ -61,7 +61,8 @@ class QueueBar(object):
         pass  # Ignore since parent has an aggregate max_value.
 
     def update(self, amount):
-        self.q.put((self.chunk, amount), False)
+        if self.q:
+            self.q.put((self.chunk, amount), False)
 
 
 def git_describe_long():
