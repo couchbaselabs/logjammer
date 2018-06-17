@@ -469,9 +469,9 @@ timestamp_prefix = "YYYY-MM-DDTHH:MM:SS"
 timestamp_prefix_len = len(timestamp_prefix)
 
 
-def entry_to_pattern(entry, entry_to_pattern_max_len=250):
+def entry_to_pattern(entry, max_first_line_chars=250, max_pattern_len=25):
     # Only look at start of first line of the entry.
-    entry_first_line = entry[0].strip()[0:entry_to_pattern_max_len]
+    entry_first_line = entry[0].strip()[:max_first_line_chars]
 
     # Split the first line into num'ish and non-num'ish sections.
     sections = re.split(re_num_ish, entry_first_line)
@@ -480,7 +480,7 @@ def entry_to_pattern(entry, entry_to_pattern_max_len=250):
     pattern = []
 
     i = 0
-    while i < len(sections):
+    while i < len(sections) and len(pattern) < max_pattern_len:
         # First, handle a non-num'ish section.
         section = sections[i]
 
