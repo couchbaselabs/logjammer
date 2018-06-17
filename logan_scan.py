@@ -429,17 +429,19 @@ ex_uid2 = "8289e02c-6623-4fa1-8087-d1bb262590f9"
 pattern_uid2 = "[\-_]".join([("[a-f0-9]" * len(x))
                              for x in ex_uid2.split("-")])
 
+pattern_uid_ish = [
+    ("#rev", pattern_rev),
+    ("#uid", pattern_uid),
+    ("#uid", pattern_uid2),
+    ("#uid", pattern_uid1a),
+    ("#uid", pattern_uid1b)]
+
 # Some number-like patterns such as dotted or dashed or slashed or
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
 # addresses are also matched.
 pattern_num_ish = [
     ("#hex", r"0x[a-f0-9][a-f0-9]+"),
     ("#hex", r"0x[A-F0-9][A-F0-9]+"),
-    ("#rev", pattern_rev),
-    ("#uid", pattern_uid),
-    ("#uid", pattern_uid2),
-    ("#uid", pattern_uid1a),
-    ("#uid", pattern_uid1b),
     ("#ymd", r"\d\d\d\d-\d\d-\d\d"),
     ("#dmy", r"\d\d/[JFMASOND][a-z][a-z]/\d\d\d\d"),
     ("#hms", r"T?\d\d:\d\d:\d\d -\d\d\d\d"),
@@ -453,14 +455,16 @@ pattern_num_ish = [
     ("#neg", r"-\d[\d\.]*"),               # Negative dotted number.
     ("#pos", r"\d[\d\.]*")]                # Positive dotted number.
 
-pattern_num_ish_joined = "(" + \
-                         "|".join(["(" + p[1] + ")"
-                                   for p in pattern_num_ish]) + \
-                         ")"
+pattern_uid_ish_joined = "(" + "|".join(["(" + p[1] + ")"
+                                         for p in pattern_uid_ish]) + ")"
 
+pattern_num_ish_joined = "(" + "|".join(["(" + p[1] + ")"
+                                         for p in pattern_num_ish]) + ")"
+
+re_uid_ish = re.compile(pattern_uid_ish_joined)
 re_num_ish = re.compile(pattern_num_ish_joined)
 
-re_section_split = re.compile(r"[^a-zA-z0-9_\-/]+")
+re_terms_split = re.compile(r"[^a-zA-z0-9_\-/]+")
 
 re_erro = re.compile(r"[^A-Z]ERRO")
 
@@ -473,49 +477,63 @@ def entry_to_pattern(entry, max_first_line_chars=250, max_pattern_len=25):
     # Only look at start of first line of the entry.
     entry_first_line = entry[0].strip()[:max_first_line_chars]
 
-    # Split the first line into num'ish and non-num'ish sections.
-    sections = re.split(re_num_ish, entry_first_line)
-
-    # Build up the current pattern from the sections.
+    # The result pattern from processing the first line.
     pattern = []
 
+    # Split the first line into uid'ish and non-uid'ish sections.
+    uid_sections = re.split(re_uid_ish, entry_first_line)
+
     i = 0
-    while i < len(sections):
+    while i < len(uid_sections):
         if len(pattern) >= max_pattern_len:
             pattern.append("*")
-            break
+            return pattern
 
-        # First, handle a non-num'ish section.
-        section = sections[i]
+        # Split into num'ish and non-num'ish sections.
+        num_sections = re.split(re_num_ish, uid_sections[i])
+
+        j = 0
+        while j < len(num_sections):
+            if len(pattern) >= max_pattern_len:
+                pattern.append("*")
+                return pattern
+
+            # First, handle a terms section.
+            process_terms(pattern, num_sections[j])
+
+            j += 1
+            if j >= len(num_sections):
+                break
+
+            # Next, handle a num-ish section, where re.split()
+            # produces as many items as there were capture groups.
+            j += process_re_groups(pattern, pattern_num_ish,
+                                   num_sections, j + 1)
 
         i += 1
+        if i >= len(uid_sections):
+            break
 
-        # Split the non-num'ish section into terms.
-        for term in re.split(re_section_split, section):
-            if not term:
-                continue
-
-            # A "positioned term" encodes a term position with a term.
-            pos_term = str(len(pattern)) + ">" + term
-
-            pattern.append(pos_term)
-
-        # Next, handle a num-ish section, where re.split()
-        # produces as many items as there were capture groups.
-        if i < len(sections):
-            num_ish_kind = None
-            j = 0
-            while j < len(pattern_num_ish):
-                if sections[i + 1 + j]:
-                    num_ish_kind = j  # The capture group that fired.
-                    break
-                j += 1
-
-            pattern.append(pattern_num_ish[num_ish_kind][0])
-
-            i += 1 + len(pattern_num_ish)
+        i += process_re_groups(pattern, pattern_uid_ish,
+                               uid_sections, i + 1)
 
     return pattern
+
+
+def process_terms(pattern, terms):
+    for term in re.split(re_terms_split, terms):
+        if term:
+            # Encode the position with the term.
+            pattern.append(str(len(pattern)) + ">" + term)
+
+
+def process_re_groups(pattern, kind_re_pairs, m, m_base):
+    for i, kind_re in enumerate(kind_re_pairs):
+        if m[m_base + i]:
+            pattern.append(kind_re[0])  # The capture group that fired.
+            break
+
+    return 1 + len(kind_re_pairs)
 
 
 def make_pattern_info(pattern, timestamp_first):
