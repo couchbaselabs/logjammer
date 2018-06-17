@@ -422,7 +422,9 @@ pattern_uid = r"[\-_]?" + ("[a-f0-9]" * len(ex_uid))
 
 ex_uidb = "##&{666c69666f 95 0 7f 2e96c7c2a262 1c8}"
 
-pattern_uidb = r"##&\{" + ("[a-f0-9]+" * len(ex_uidb.split(" "))) + r"\}"
+pattern_uidb = r"##&\{" + \
+               " ".join(["[a-f0-9]+"] * len(ex_uidb.split(" "))) + \
+               r"\}"
 
 ex_uidh = "8289e02c-6623-4fa1-8087-d1bb262590f9"
 
