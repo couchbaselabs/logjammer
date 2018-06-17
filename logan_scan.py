@@ -480,7 +480,11 @@ def entry_to_pattern(entry, max_first_line_chars=250, max_pattern_len=25):
     pattern = []
 
     i = 0
-    while i < len(sections) and len(pattern) < max_pattern_len:
+    while i < len(sections):
+        if len(pattern) >= max_pattern_len:
+            pattern.append("*")
+            break
+
         # First, handle a non-num'ish section.
         section = sections[i]
 
