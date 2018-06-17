@@ -45,7 +45,7 @@ def scan(argv, args):
 
 
 def rank_pattern_infos(file_patterns):
-    print "\n============================================"
+    print "\n\n============================================"
 
     print "len(file_patterns)", len(file_patterns)
 
