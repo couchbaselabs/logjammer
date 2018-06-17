@@ -195,22 +195,47 @@ def scan_multiprocessing_join(results, out_prefix):
         if timestamps_file_name:
             timestamps_file_names.append(timestamps_file_name)
 
+    timestamps_num_unique, timestamps_file_name = \
+        scan_multiprocessing_join_timestamps(timestamps_file_names,
+                                             out_prefix)
+
+    return file_patterns, timestamps_num_unique, timestamps_file_name
+
+
+def scan_multiprocessing_join_timestamps(timestamps_file_names,
+                                         out_prefix, max_batch_size=50):
+    i = 0
+
+    while len(timestamps_file_names) > max_batch_size:
+        batch = timestamps_file_names[:max_batch_size]
+
+        batch_out = out_prefix + "-timestamps-batch-" + str(i) + ".txt"
+
+        sort_files(batch, batch_out)
+
+        timestamps_file_names = timestamps_file_names[max_batch_size:]
+        timestamps_file_names.append(batch_out)
+
+        i += 1
+
     timestamps_file_name = out_prefix + "-timestamps.txt"
 
-    subprocess.check_output(
-        ['sort', '--merge', '--unique', '--output=' + timestamps_file_name] +
-        timestamps_file_names)
+    sort_files(timestamps_file_names, timestamps_file_name)
 
     timestamps_num_unique = int(subprocess.check_output(
         ['wc', '-l', timestamps_file_name]).strip().split(' ')[0])
 
-    for x in timestamps_file_names:
-        os.remove(x)
+    return timestamps_num_unique, timestamps_file_name
 
+
+def sort_files(files, out_file):
     subprocess.check_output(
-        ['sort', '--output=' + timestamps_file_name, timestamps_file_name])
+        ['sort', '--merge', '--unique', '--output=' + out_file] + files)
 
-    return file_patterns, timestamps_num_unique, timestamps_file_name
+    subprocess.check_output(['sort', '--output=' + out_file, out_file])
+
+    for x in files:
+        os.remove(x)
 
 
 # Worker that scans a single chunk.
