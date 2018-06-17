@@ -9,6 +9,10 @@ import subprocess
 import sys
 import traceback
 
+# See progressbar2 https://github.com/WoLpH/python-progressbar
+# Ex: pip install progressbar2
+import progressbar
+
 import logmerge
 
 from logan_util import chunkify_path_sizes, \
@@ -203,10 +207,19 @@ def scan_multiprocessing_join(results, out_prefix):
 
 
 def scan_multiprocessing_join_timestamps(timestamps_file_names,
-                                         out_prefix, max_batch_size=50):
+                                         out_prefix, max_batch_size=100):
+    print "\n\n============================================"
+    print "sorting timestamps..."
+
+    num_files = len(timestamps_file_names)
+
+    bar = progressbar.ProgressBar(max_value=num_files)
+
     i = 0
 
     while len(timestamps_file_names) > max_batch_size:
+        bar.update(num_files - len(timestamps_file_names))
+
         batch = timestamps_file_names[:max_batch_size]
 
         batch_out = out_prefix + "-timestamps-batch-" + str(i) + ".txt"
