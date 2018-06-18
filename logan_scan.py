@@ -440,12 +440,17 @@ ex_uid1 = ["13531948318466533075",
 
 pattern_uid1 = r"[\-_]?" + ("[a-f0-9]" * len(ex_uid1[-1])) + "[a-f0-9]*"
 
+ex_tok = "b1:d:cb:a5:ba:63:5:de"
+
+pattern_tok = ":".join(["[a-f0-9]+"] * len(ex_tok.split(":")))
+
 pattern_uid_ish = [
     ("#rev", pattern_rev),
     ("#uid", pattern_uid),
     ("#uidb", pattern_uidb),
     ("#uidh", pattern_uidh),
-    ("#uid1", pattern_uid1)]
+    ("#uid1", pattern_uid1),
+    ("#tok", pattern_tok)]
 
 # Some number-like patterns such as dotted or dashed or slashed or
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
