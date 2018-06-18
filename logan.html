@@ -462,7 +462,8 @@ function nextImg() {
 
 document.addEventListener("keyup",
   function(e) {
-    if (e.srcElement == document.body) {
+    if (e.srcElement == document.body ||
+        e.srcElement.nodeName == "BUTTON") {
       if (e.key == "[") {
         prevImg();
       }
