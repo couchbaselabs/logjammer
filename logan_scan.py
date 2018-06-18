@@ -456,6 +456,8 @@ pattern_uid_ish = [
 # colon'ed numbers.  Patterns like YYYY-MM-DD, HH:MM:SS and IP
 # addresses are also matched.
 pattern_num_ish = [
+    ("#bool", r"false"),
+    ("#bool", r"true"),
     ("#hex", r"0x[a-f0-9][a-f0-9]+"),
     ("#hex", r"0x[A-F0-9][A-F0-9]+"),
     ("#ymd", r"\d\d\d\d-\d\d-\d\d"),
@@ -547,8 +549,10 @@ def process_terms(pattern, terms):
 
 def process_re_groups(pattern, kind_re_pairs, m, m_base):
     for i, kind_re in enumerate(kind_re_pairs):
-        if m[m_base + i]:
-            pattern.append(kind_re[0])  # The capture group that fired.
+        if m[m_base + i]:  # The capture group that fired.
+            if (not pattern) or pattern[-1] != kind_re[0]:
+                # Append to pattern only if it's different than last item.
+                pattern.append(kind_re[0])
             break
 
     return 1 + len(kind_re_pairs)
