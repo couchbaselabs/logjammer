@@ -99,8 +99,10 @@
     <td valign="top" rowspan="2">
      <div class="nav">
       <div id="imgLabel">...</div>
-      <button onclick="prevImg();">&#9650; prev</button><br/>
-      <button onclick="nextImg();">next &#9660;</button><br/>
+      <button onclick="prevImg();"
+              title="load previous page, or press '[' key">&#9650; prev</button><br/>
+      <button onclick="nextImg();"
+              title="load next page, or press ']' key">next &#9660;</button><br/>
      </div>
     </td>
     <td width="100%" valign="top">
@@ -457,6 +459,18 @@ function nextImg() {
     loadImg(currImgInfo.imgIdx + 1, outPrefix);
   }
 }
+
+document.addEventListener("keyup",
+  function(e) {
+    if (e.srcElement == document.body) {
+      if (e.key == "[") {
+        prevImg();
+      }
+      if (e.key == "]") {
+        nextImg();
+      }
+    }
+  });
 
 // ------------------------------------------------------------------
 
