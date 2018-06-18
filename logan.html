@@ -13,7 +13,7 @@
 }
 
 .img {
-  padding: 0 0 80px 0;
+  padding: 0 0 100px 0;
 }
 
 .bar {
@@ -100,9 +100,11 @@
      <div class="nav">
       <div id="imgLabel">...</div>
       <button onclick="prevImg();"
-              title="load previous page, or press '[' key">&#9650; prev</button><br/>
+              title="load previous page, or press '[' for scroll-up">
+        &#9650; prev</button><br/>
       <button onclick="nextImg();"
-              title="load next page, or press ']' key">next &#9660;</button><br/>
+              title="load next page, or press ']' for scroll-down">
+        next &#9660;</button><br/>
      </div>
     </td>
     <td width="100%" valign="top">
@@ -451,24 +453,60 @@ function drill() {
 function prevImg() {
   if (currImgInfo && currImgInfo.imgIdx > 0) {
     loadImg(currImgInfo.imgIdx - 1, outPrefix);
+    return true;
   }
 }
 
 function nextImg() {
   if (currImgInfo) {
     loadImg(currImgInfo.imgIdx + 1, outPrefix);
+    return true;
   }
 }
 
 document.addEventListener("keyup",
   function(e) {
-    if (e.srcElement == document.body ||
-        e.srcElement.nodeName == "BUTTON") {
-      if (e.key == "[") {
-        prevImg();
+    if (e.srcElement != document.body &&
+        e.srcElement.nodeName != "BUTTON") {
+      return;
+    }
+
+    if (!currImgInfo) {
+      return;
+    }
+
+    var imgHeight = currImgInfo.imgEl.offsetHeight;
+    if (imgHeight <= 0) {
+      return;
+    }
+
+    var ftrHeight = document.getElementById("ftr").offsetHeight;
+
+    var clientHeight = Math.max(1, document.body.clientHeight - ftrHeight);
+    var clientCount = Math.max(1, Math.ceil((1.0 * imgHeight) / clientHeight));
+    var scrollBy = Math.max(1, Math.ceil(imgHeight / clientCount));
+
+    if (e.key == "[") {
+      if (window.pageYOffset <= 0) {
+        if (prevImg()) {
+          window.scrollTo(window.pageXOffset,
+                          Math.floor(document.body.scrollHeight - scrollBy));
+        }
+      } else {
+        window.scrollTo(window.pageXOffset,
+                        window.pageYOffset - scrollBy);
       }
-      if (e.key == "]") {
-        nextImg();
+    }
+
+    if (e.key == "]") {
+      var lastY = window.pageYOffset;
+
+      window.scrollTo(window.pageXOffset,
+                      window.pageYOffset + scrollBy);
+      if (window.pageYOffset <= lastY) {
+        if (nextImg()) {
+          window.scrollTo(window.pageXOffset, 0);
+        }
       }
     }
   });
