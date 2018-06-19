@@ -539,7 +539,7 @@ class Plotter(object):
     def start_image(self):
         self.im = Image.new("RGB", (self.width, self.height))
         self.im_name = self.prefix + "-" + \
-            "{0:0>3}".format(self.im_num) + ".png"
+            "{0:0>4}".format(self.im_num) + ".png"
 
         self.draw = ImageDraw.Draw(self.im)
 
