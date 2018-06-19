@@ -647,6 +647,10 @@ window.onload = function() {
       currInfo = info;
 
       initThumb(info);
+
+      window.addEventListener("resize", function() {
+        initThumb(currInfo);
+      });
     });
 }
 </script>
