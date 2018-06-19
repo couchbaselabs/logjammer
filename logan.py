@@ -58,7 +58,7 @@ def main_steps(argv, args, scan_info=None):
     if "plot" in steps:
         print "\n============================================"
         print "plotting..."
-        plot_info = init_plot_info(scan_info)
+        plot_info = init_plot_info(argv, args, scan_info)
 
         plot_info_file = args.out_prefix + ".json"
         with open(plot_info_file, 'w') as f:

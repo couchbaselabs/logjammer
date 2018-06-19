@@ -28,13 +28,15 @@ from logan_util import byteify, chunkify_path_sizes, \
 timestamp_gutter_width = 4  # In pixels.
 
 
-def init_plot_info(scan_info):
+def init_plot_info(argv, args, scan_info):
     plot_info = dict(scan_info)  # Copy before modifying.
 
     plot_info["timestamp_gutter_width"] = timestamp_gutter_width
 
     # The file_patterns are too big / unused so remove from plot_info.
     del plot_info["file_patterns"]
+
+    plot_info["max_image_height"] = args.max_image_height
 
     return plot_info
 
