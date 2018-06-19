@@ -150,10 +150,12 @@ var currImgInfo;
 
 // ------------------------------------------------------------------
 
+var defaultImgZeroPad = 3;
+
 function loadImg(imgIdx, outPrefix) {
   var imgEl = document.createElement('img');
 
-  imgEl.id = "img-" + zeroPad(imgIdx, 3);
+  imgEl.id = "img-" + zeroPad(imgIdx, defaultImgZeroPad);
   imgEl.className = "img";
 
   imgEl.addEventListener("load", function() {
@@ -219,7 +221,8 @@ function loadImg(imgIdx, outPrefix) {
     switchCurrImgInfo(imgInfo);
   });
 
-  imgEl.src = outPrefix + "-" + zeroPad(imgIdx, 3) + ".png";
+  imgEl.src = outPrefix + "-" +
+              zeroPad(imgIdx, defaultImgZeroPad) + ".png";
 }
 
 // --------------------------------------------------------
@@ -388,7 +391,8 @@ function initThumb(info) {
       loadThumbPage(page + 1);
     });
 
-    thumbPageImgEl.src = outPrefix + "-" + zeroPad(page, 3) + ".png";
+    thumbPageImgEl.src = outPrefix + "-" +
+                         zeroPad(page, defaultImgZeroPad) + ".png";
   }
 
   loadThumbPage(0);
