@@ -1,8 +1,7 @@
 <html>
 <head>
-<title>LOGAN</title>
+  <title>LOGAN</title>
 </head>
-
 <style>
 .img, #hilite {
   position: absolute;
@@ -13,7 +12,7 @@
 }
 
 .img {
-  padding: 0 50px 100px 0;
+  padding: 0 30px 100px 0;
 }
 
 .bar {
@@ -88,13 +87,24 @@
   position: fixed;
   top: 0;
   right: 0;
-  width: 50px;
+  width: 20px;
   height: 100%;
   border-left: 1px solid #999;
   background: white;
 }
-</style>
 
+#thumbElevator {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 0px;
+  margin: 0 0 0 0;
+  border: 1px solid #900;
+  padding: 0 0 0 0;
+  background-color: rgb(255, 255, 255, 0);
+}
+</style>
 <body>
  <canvas id="hilite"></canvas>
 
@@ -104,6 +114,8 @@
  <div id="barVB" class="bar barV"></div>
 
  <canvas id="thumb" style="display:none;"></canvas>
+
+ <div id="thumbElevator" style="display:none;"></div>
 
  <div id="ftr">
   <table>
@@ -142,7 +154,6 @@
   </table>
  </div>
 </body>
-
 <script>
 var currInfo;
 
@@ -253,6 +264,8 @@ function switchCurrImgInfo(imgInfo) {
   }
 
   focused = false;
+
+  updateThumbElevator();
 }
 
 // --------------------------------------------------------
@@ -379,14 +392,17 @@ function initThumb(info) {
 
       var thumbPageHeight = Math.floor(thumbEl.offsetHeight / numPages);
 
-      console.log(page, page * thumbPageHeight, thumbPageHeight)
-
       var thumbCtx = thumbEl.getContext('2d');
 
       thumbCtx.drawImage(thumbPageImgEl,
                          0, 0, thumbPageImgEl.width, thumbPageImgEl.height,
                          0, page * thumbPageHeight,
                          thumbEl.clientWidth, thumbPageHeight);
+
+      var elevatorEl = document.getElementById("thumbElevator");
+
+      elevatorEl.style.display = "";
+      elevatorEl.style.height = thumbPageHeight + "px";
 
       loadThumbPage(page + 1);
     });
@@ -396,6 +412,17 @@ function initThumb(info) {
   }
 
   loadThumbPage(0);
+}
+
+function updateThumbElevator() {
+  if (currImgInfo) {
+    var elevatorEl = document.getElementById("thumbElevator");
+
+    elevatorEl.style.top =
+      (currImgInfo.imgIdx * elevatorEl.clientHeight) +
+      Math.round(elevatorEl.clientHeight *
+                 (window.pageYOffset / document.body.scrollHeight)) + "px";
+  }
 }
 
 // ------------------------------------------------------------------
@@ -563,6 +590,8 @@ document.addEventListener("keyup",
         window.scrollTo(window.pageXOffset,
                         window.pageYOffset - scrollBy);
       }
+
+      updateThumbElevator();
     }
 
     if (e.key == "]") {
@@ -575,6 +604,8 @@ document.addEventListener("keyup",
           window.scrollTo(window.pageXOffset, 0);
         }
       }
+
+      updateThumbElevator();
     }
   });
 
@@ -654,6 +685,12 @@ window.onload = function() {
 
       window.addEventListener("resize", function() {
         initThumb(currInfo);
+
+        updateThumbElevator();
+      });
+
+      window.addEventListener("scroll", function() {
+        updateThumbElevator();
       });
     });
 }
