@@ -46,6 +46,10 @@ def main(argv, argument_parser=None, visitor=None):
 
     args = argument_parser.parse_args(argv[1:])
 
+    if len(args.path) <= 0:
+        print "No inputs supplied"
+        exit(0)
+        
     main_with_args(args, visitor=visitor)
 
 
@@ -213,7 +217,7 @@ def process(paths,
 
     if not path_prefix:
         if len(paths) > 1:
-            path_prefix = os.path.commonprefix(paths)
+            path_prefix = paths[0].split(':')
         else:
             path_prefix = ""
 
@@ -263,24 +267,16 @@ def expand_paths(paths, suffix):
     path_sizes = {}
 
     for path in globbed:
-        if path.endswith(".zip"):
+        if zipfile.is_zipfile(path):
             zf = zipfile.ZipFile(path, 'r')
             for info in zf.infolist():
-                zpath = path + "/" + info.filename
+                zpath = path + ":" + info.filename
                 rv.append(zpath)
                 total_size += info.file_size
-                path_sizes[zpath] = info.file_size
+                path_sizes[info.filename] = info.file_size
         else:
             rv.append(path)
-
-            zip_suffix = path.find(".zip/")
-            if zip_suffix > 0:
-                zf = zipfile.ZipFile(path[0:zip_suffix+4], 'r')
-                size = zf.getinfo(path[zip_suffix+5:]).file_size
-                zf.close()
-            else:
-                size = os.path.getsize(path)
-
+            size = os.path.getsize(path)
             total_size += size
             path_sizes[path] = size
 
@@ -298,18 +294,17 @@ def prepare_heap_entries(paths, path_prefix,
     zfs = {}  # Key is path, value is zipfile.ZipFile.
 
     for path in paths:
-        zip_suffix = path.find(".zip/")
-        if zip_suffix > 0:
+        zip_suffix = path.find(".zip:")
+        if zip_suffix >= 0:
             zp = path[0:zip_suffix+4]
-
-            zf = zfs.get(zp)
-            if not zf:
-                zf = zipfile.ZipFile(zp, 'r')
-                zfs[zp] = zf
-
-            f = zf.open(path[zip_suffix+5:], 'r')
-            f_size = zf.getinfo(path[zip_suffix+5:]).file_size
+            zfs = zipfile.ZipFile(zp, 'r')
+            zf = path[zip_suffix+5:]
+            #print(zp,zf)
+            if zf.find(".log") <= 0:
+                next
+            f = zfs.open(zf, 'r')
         else:
+            #print(path)
             f = open(path, 'r')
             f_size = os.path.getsize(path)
 
