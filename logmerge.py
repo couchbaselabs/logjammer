@@ -84,6 +84,10 @@ def add_arguments(ap):
                     of by default to stdout; when an OUT file is specified,
                     a progress bar is shown instead on stdout""")
 
+    ap.add_argument('--verbose', '-v', action='count',
+                    help=""" Provides verbose output, level of verbosity determined
+                    by the count of option i.e. -v, -vv or -vvv""")
+
     add_path_arguments(ap)
     add_match_arguments(ap)
     add_time_range_arguments(ap)
