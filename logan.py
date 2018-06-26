@@ -18,6 +18,10 @@ def main(argv):
 
     args = prep_args(args)
 
+    if len(args.path) <= 0:
+        print "No inputs supplied"
+        exit(0)
+
     if args.multiprocessing >= 0:
         signal.signal(signal.SIGINT, on_sigint)
 

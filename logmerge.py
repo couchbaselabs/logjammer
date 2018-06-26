@@ -46,6 +46,10 @@ def main(argv, argument_parser=None, visitor=None):
 
     args = argument_parser.parse_args(argv[1:])
 
+    if len(args.path) <= 0:
+        print "No inputs supplied"
+        exit(0)
+
     main_with_args(args, visitor=visitor)
 
 
