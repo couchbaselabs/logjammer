@@ -56,6 +56,10 @@ def new_argument_parser():
                     where valid steps are: load, scan, save, plot, http;
                     (default: scan,save,plot)""")
 
+    ap.add_argument('--verbose', '-v', action='count',
+                    help=""" Provides verbose output, level of verbosity determined
+                    by the count of option i.e. -v, -vv or -vvv""")
+
     # Subset of arguments shared with logmerge.
 
     logmerge.add_path_arguments(ap)

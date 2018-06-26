@@ -46,6 +46,10 @@ def main(argv, argument_parser=None, visitor=None):
 
     args = argument_parser.parse_args(argv[1:])
 
+    if len(args.path) <= 0:
+        print "No inputs supplied"
+        exit(0)
+
     main_with_args(args, visitor=visitor)
 
 
@@ -79,6 +83,10 @@ def add_arguments(ap):
                     help="""write to an OUT file instead
                     of by default to stdout; when an OUT file is specified,
                     a progress bar is shown instead on stdout""")
+
+    ap.add_argument('--verbose', '-v', action='count',
+                    help=""" Provides verbose output, level of verbosity determined
+                    by the count of option i.e. -v, -vv or -vvv""")
 
     add_path_arguments(ap)
     add_match_arguments(ap)
