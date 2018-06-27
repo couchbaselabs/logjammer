@@ -49,7 +49,6 @@ def main(argv, argument_parser=None, visitor=None):
     if len(args.path) <= 0:
         print "No inputs supplied"
         exit(0)
-        
     main_with_args(args, visitor=visitor)
 
 
@@ -94,7 +93,6 @@ def add_arguments(ap):
     add_time_range_arguments(ap)
     add_scan_range_arguments(ap)
     add_advanced_arguments(ap)
-
     return ap
 
 def add_path_arguments(ap):
