@@ -71,7 +71,7 @@ def main_with_args(args, visitor=None, path_prefix=None, bar=None):
             visitor=visitor,
             wrap=args.wrap,
             wrap_indent=args.wrap_indent,
-            verbosity=args.verbose,
+            verbose=args.verbose,
             bar=bar)
 
     if args.out != '--' and args.out != os.devnull:
@@ -85,7 +85,7 @@ def add_arguments(ap):
                     a progress bar is shown instead on stdout""")
 
     ap.add_argument('--verbose', '-v', action='count',
-                    help=""" Provides verbose output, level of verbosity determined
+                    help=""" Provides verbose output, level of verbose determined
                     by the count of option i.e. -v, -vv or -vvv""")
 
     add_path_arguments(ap)
@@ -213,7 +213,7 @@ def process(paths,
             wrap=None,                # Wrap long lines to this many chars.
             wrap_indent=None,         # Indentation of wrapped secondary lines.
             w=None,                   # Optional output stream.
-            verbosity=0,              # verbosity.
+            verbose=0,                # verbose-ness of logged output.
             bar=None):                # Optional progress bar.
     # Find log files.
     paths, total_size, path_sizes = expand_paths(paths, suffix)
@@ -227,7 +227,7 @@ def process(paths,
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,
                                         scan_start, scan_length,
-                                        max_lines_per_entry, start, end, verbosity)
+                                        max_lines_per_entry, start, end, verbose)
 
     # By default, emit to stdout with no progress display.
     if not w:
@@ -291,7 +291,7 @@ def expand_paths(paths, suffix):
 
 def prepare_heap_entries(paths, path_prefix,
                          scan_start, scan_length,
-                         max_lines_per_entry, start, end, verbosity):
+                         max_lines_per_entry, start, end, verbose):
 
     heap_entries = []
 
@@ -304,14 +304,14 @@ def prepare_heap_entries(paths, path_prefix,
             zf = path[zip_suffix+5:]
             zfs = zipfile.ZipFile(zp, 'r')
             if zf.find(".log") > 0:
-                if verbosity == 3:
+                if verbose == 3:
                     print(zp,zf)
                     f = zfs.open(zf)
                     f_size= zfs.getinfo(zf).file_size
             else:
                 next
         else:
-            if verbosity == 3:
+            if verbose == 3:
                 print(path)
             f = open(path, 'r')
             f_size = os.path.getsize(path)
