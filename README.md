@@ -27,3 +27,13 @@ to start a web server on port 9999, using info from the previous logan run...
 > logan.py --http=9999 --repo=~/path/to/source/repo cbcollect*
 
 then, visit http://localhost:9999 in your web browser
+
+If you use the option --out-prefix=zzz say
+
+> logan.py --http=9999 --repo=~/path/to/source/repo cbcollect* --out-prefix=zzz
+
+then you will need to visit the following 
+
+address http://localhost:9996/?outPrefix=zzz
+
+
