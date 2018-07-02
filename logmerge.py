@@ -49,7 +49,6 @@ def main(argv, argument_parser=None, visitor=None):
     if len(args.path) <= 0:
         print "No inputs supplied"
         exit(0)
-
     main_with_args(args, visitor=visitor)
 
 
@@ -72,6 +71,7 @@ def main_with_args(args, visitor=None, path_prefix=None, bar=None):
             visitor=visitor,
             wrap=args.wrap,
             wrap_indent=args.wrap_indent,
+            verbose=args.verbose,
             bar=bar)
 
     if args.out != '--' and args.out != os.devnull:
@@ -85,7 +85,7 @@ def add_arguments(ap):
                     a progress bar is shown instead on stdout""")
 
     ap.add_argument('--verbose', '-v', action='count',
-                    help=""" Provides verbose output, level of verbosity determined
+                    help=""" Provides verbose output, level of verbose determined
                     by the count of option i.e. -v, -vv or -vvv""")
 
     add_path_arguments(ap)
@@ -93,12 +93,10 @@ def add_arguments(ap):
     add_time_range_arguments(ap)
     add_scan_range_arguments(ap)
     add_advanced_arguments(ap)
-
     return ap
 
-
 def add_path_arguments(ap):
-    ap.add_argument('--suffix', type=str, default="log",
+    ap.add_argument('--suffix', type=str, default="log,zip",
                     help="""when expanding directory paths,
                     find log files that match this glob suffix
                     (default: %(default)s)""")
@@ -209,26 +207,30 @@ def process(paths,
             end=None,                 # End timestamp for filtering.
             scan_start=None,          # Optional scan seek start byte.
             scan_length=None,         # Optional scan max number of bytes.
-            suffix="log",             # Suffix used with directory glob'ing.
+            suffix="log,zip",         # Suffix used with directory glob'ing.
             timestamp_prefix=False,   # Emit normalized timestamp prefix.
             visitor=None,             # Optional entry visitor callback.
             wrap=None,                # Wrap long lines to this many chars.
             wrap_indent=None,         # Indentation of wrapped secondary lines.
             w=None,                   # Optional output stream.
+            verbose=0,                # verbose-ness of logged output.
             bar=None):                # Optional progress bar.
     # Find log files.
     paths, total_size, path_sizes = expand_paths(paths, suffix)
 
     if not path_prefix:
-        if len(paths) > 1:
-            path_prefix = os.path.commonprefix(paths)
+        if paths[0].find(".zip:") > 0:
+            path_prefix = paths[0].split(':')
         else:
-            path_prefix = ""
+            if (len(paths) > 1):
+                path_prefix = os.path.commonprefix(paths)
+            else:
+                path_prefix = ""
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,
                                         scan_start, scan_length,
-                                        max_lines_per_entry, start, end)
+                                        max_lines_per_entry, start, end, verbose)
 
     # By default, emit to stdout with no progress display.
     if not w:
@@ -271,24 +273,17 @@ def expand_paths(paths, suffix):
     path_sizes = {}
 
     for path in globbed:
-        if path.endswith(".zip"):
+        if zipfile.is_zipfile(path):
             zf = zipfile.ZipFile(path, 'r')
-            for info in zf.infolist():
-                zpath = path + "/" + info.filename
+            for info in zf.namelist():
+                zpath = path + ":" + info
                 rv.append(zpath)
-                total_size += info.file_size
-                path_sizes[zpath] = info.file_size
+                file_info = zf.getinfo(info)
+                total_size += file_info.file_size
+                path_sizes[info] = file_info.file_size
         else:
             rv.append(path)
-
-            zip_suffix = path.find(".zip/")
-            if zip_suffix > 0:
-                zf = zipfile.ZipFile(path[0:zip_suffix+4], 'r')
-                size = zf.getinfo(path[zip_suffix+5:]).file_size
-                zf.close()
-            else:
-                size = os.path.getsize(path)
-
+            size = os.path.getsize(path)
             total_size += size
             path_sizes[path] = size
 
@@ -299,25 +294,28 @@ def expand_paths(paths, suffix):
 
 def prepare_heap_entries(paths, path_prefix,
                          scan_start, scan_length,
-                         max_lines_per_entry, start, end):
+                         max_lines_per_entry, start, end, verbose):
 
     heap_entries = []
 
     zfs = {}  # Key is path, value is zipfile.ZipFile.
 
     for path in paths:
-        zip_suffix = path.find(".zip/")
-        if zip_suffix > 0:
+        zip_suffix = path.find(".zip:")
+        if zip_suffix >= 0:
             zp = path[0:zip_suffix+4]
-
-            zf = zfs.get(zp)
-            if not zf:
-                zf = zipfile.ZipFile(zp, 'r')
-                zfs[zp] = zf
-
-            f = zf.open(path[zip_suffix+5:], 'r')
-            f_size = zf.getinfo(path[zip_suffix+5:]).file_size
+            zf = path[zip_suffix+5:]
+            zfs = zipfile.ZipFile(zp, 'r')
+            if zf.find(".log") > 0:
+                if verbose == 3:
+                    print(zp,zf)
+                    f = zfs.open(zf)
+                    f_size= zfs.getinfo(zf).file_size
+            else:
+                continue
         else:
+            if verbose == 3:
+                print(path)
             f = open(path, 'r')
             f_size = os.path.getsize(path)
 

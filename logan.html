@@ -654,7 +654,7 @@ window.onload = function() {
 
   loadImg(imgIdx, outPrefix);
 
-  fetch('out-logan.json')
+  fetch(outPrefix+'.json')
     .then(function(response) {
       return response.json();
     })
