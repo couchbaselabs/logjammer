@@ -96,7 +96,7 @@ def add_arguments(ap):
     return ap
 
 def add_path_arguments(ap):
-    ap.add_argument('--suffix', type=str, default="log",
+    ap.add_argument('--suffix', type=str, default="log,zip",
                     help="""when expanding directory paths,
                     find log files that match this glob suffix
                     (default: %(default)s)""")
@@ -207,7 +207,7 @@ def process(paths,
             end=None,                 # End timestamp for filtering.
             scan_start=None,          # Optional scan seek start byte.
             scan_length=None,         # Optional scan max number of bytes.
-            suffix="log",             # Suffix used with directory glob'ing.
+            suffix="log,zip",         # Suffix used with directory glob'ing.
             timestamp_prefix=False,   # Emit normalized timestamp prefix.
             visitor=None,             # Optional entry visitor callback.
             wrap=None,                # Wrap long lines to this many chars.
@@ -219,10 +219,13 @@ def process(paths,
     paths, total_size, path_sizes = expand_paths(paths, suffix)
 
     if not path_prefix:
-        if len(paths) > 1:
+        if paths[0].find(".zip:") > 0:
             path_prefix = paths[0].split(':')
         else:
-            path_prefix = ""
+            if (len(paths) > 1):
+                path_prefix = os.path.commonprefix(paths)
+            else:
+                path_prefix = ""
 
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,
@@ -309,7 +312,7 @@ def prepare_heap_entries(paths, path_prefix,
                     f = zfs.open(zf)
                     f_size= zfs.getinfo(zf).file_size
             else:
-                next
+                continue
         else:
             if verbose == 3:
                 print(path)
