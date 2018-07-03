@@ -95,6 +95,7 @@ def add_arguments(ap):
     add_advanced_arguments(ap)
     return ap
 
+
 def add_path_arguments(ap):
     ap.add_argument('--suffix', type=str, default="log,zip",
                     help="""when expanding directory paths,
@@ -230,7 +231,8 @@ def process(paths,
     # Prepare heap entry for each log file.
     heap_entries = prepare_heap_entries(paths, path_prefix,
                                         scan_start, scan_length,
-                                        max_lines_per_entry, start, end, verbose)
+                                        max_lines_per_entry, start, end,
+                                        verbose)
 
     # By default, emit to stdout with no progress display.
     if not w:
@@ -308,9 +310,9 @@ def prepare_heap_entries(paths, path_prefix,
             zfs = zipfile.ZipFile(zp, 'r')
             if zf.find(".log") > 0:
                 if verbose == 3:
-                    print(zp,zf)
+                    print(zp, zf)
                     f = zfs.open(zf)
-                    f_size= zfs.getinfo(zf).file_size
+                    f_size = zfs.getinfo(zf).file_size
             else:
                 continue
         else:

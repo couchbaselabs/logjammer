@@ -57,7 +57,7 @@ def new_argument_parser():
                     (default: scan,save,plot)""")
 
     ap.add_argument('--verbose', '-v', action='count',
-                    help=""" Provides verbose output, level of verbosity determined
+                    help="""provides verbose output, level of verbosity determined
                     by the count of option i.e. -v, -vv or -vvv""")
 
     # Subset of arguments shared with logmerge.
