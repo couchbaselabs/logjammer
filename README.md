@@ -3,9 +3,9 @@ logmerge.py
 
 logmerge merges log files by timestamp to stdout or to a file
 
-command line help: logmerge.py -h
+Command line help: logmerge.py -h
 
-examples...
+Examples...
 
 > logmerge.py --out=out.log cbcollect*
 
@@ -14,26 +14,27 @@ logan.py
 
 logan analyzes and plots multiple log files into a PNG image
 
-command line help: logan.py -h
+Command line help: logan.py -h
 
-examples...
+Examples...
 
 > logan.py cbcollect*
 
-the above emits analysis files, and an out-logan-000.png image
+The above emits analysis files, and an out-logan-000.png image.
 
-to start a web server on port 9999, using info from the previous logan run...
+To start a web server on port 9999, using data from the previous
+logan.py run...
 
 > logan.py --http=9999 --repo=~/path/to/source/repo cbcollect*
 
-then, visit http://localhost:9999 in your web browser
+Then, visit http://localhost:9999 in your web browser.
 
-If you use the option --out-prefix=zzz say
+If you use the option --out-prefix=PREFIX, such as...
 
-> logan.py --http=9999 --repo=~/path/to/source/repo cbcollect* --out-prefix=zzz
+> logan.py --http=9999 --repo=~/path/to/source/repo --out-prefix=zzz cbcollect*
 
-then you will need to visit the following 
+Then you also need to provide an outPrefix in your URL...
 
-address http://localhost:9996/?outPrefix=zzz
+http://localhost:9999/?outPrefix=zzz
 
 
