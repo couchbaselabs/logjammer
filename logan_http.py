@@ -46,9 +46,15 @@ def http_server(argv, args):
 
     server = SocketServer.TCPServer(('0.0.0.0', port_num), Handler)
 
-    print "http server started..."
+    print "http server started"
 
-    print "  http://localhost:" + str(port_num)
+    print "\nplease visit...\n"
+
+    extra = ""
+    if args.out_prefix != "out-logan":
+        extra = "?outPrefix=" + args.out_prefix
+
+    print "  http://localhost:" + str(port_num) + extra + "\n"
 
     server.serve_forever()
 
